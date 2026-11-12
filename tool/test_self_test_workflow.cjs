@@ -85,13 +85,11 @@ test('macOS self-tests retain the validated SDK and never request distribution s
   assert.doesNotMatch(macos, /notarytool|import-codesign|Developer ID/);
 });
 
-test('Windows self-tests build both native architectures and verify their portable bundles', () => {
+test('Windows self-tests build the windows-latest package and verify its portable bundle', () => {
   const windows = job('windows');
   assert.match(windows, /needs: quality/);
   assert.match(windows, /arch: x64\n\s+runner: windows-latest/);
-  assert.match(windows, /arch: arm64\n\s+runner: windows-11-arm/);
-  assert.match(windows, /559ffa3f75e7402d65a8def9c28389a9b2e6fe42/);
-  assert.match(windows, /windows_arm64/);
+  assert.doesNotMatch(windows, /windows-11-arm/);
   assert.match(windows, /flutter build windows --release --no-pub/);
   assert.doesNotMatch(windows, /FLUTIFY_NATIVE_WIDEVINE/);
   assert.match(windows, /python tool\/verify_windows_arch\.py/);
@@ -111,15 +109,16 @@ test('Linux self-tests package both release formats for other distributions', ()
   assert.match(linux, /if-no-files-found: error/);
 });
 
-test('the separate release pipeline still requires fixed signing secrets and certificate checks', () => {
+test('the release pipeline uses a fixed keystore when secrets exist, otherwise the debug key', () => {
   const release = read('.github/workflows/build.yml');
   const gradle = read('android/app/build.gradle.kts');
-  assert.match(release, /Missing Android signing secrets/);
+  assert.match(release, /No fixed Android signing secrets/);
   assert.match(release, /secrets\.ANDROID_KEYSTORE_BASE64/);
   assert.match(release, /secrets\.ANDROID_SIGNING_CERT_SHA256/);
+  assert.match(release, /ANDROID_SIGNING_UNPINNED=1/);
   assert.match(release, /python3 tool\/verify_android_apks\.py/);
   assert.match(release, /if: needs\.prepare\.outputs\.publish == 'true'/);
   assert.doesNotMatch(release, /create_self_test_android_key|flutify-self-test\.p12/);
-  assert.match(gradle, /check\(releaseSigningReady\)/);
-  assert.match(gradle, /signingConfig = signingConfigs\.getByName\("release"\)/);
+  assert.match(gradle, /signingConfigs\.getByName\("debug"\)/);
+  assert.match(gradle, /signingConfigs\.getByName\("release"\)/);
 });

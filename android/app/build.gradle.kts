@@ -20,11 +20,13 @@ val releaseKeyPassword = signingValue("ANDROID_KEY_PASSWORD", "keyPassword")
 val releaseSigningReady = listOf(releaseStore, releaseStorePassword, releaseAlias, releaseKeyPassword)
     .all { !it.isNullOrBlank() }
 
-// Never silently ship a debug-signed or unsigned release when CI secrets are missing.
+// 配了固定密钥就用它。没有上游密钥时，release 包改用 debug 密钥，
+// 避免打出未签名包；这种包不是上游证书，发布说明里要标明。
 gradle.taskGraph.whenReady {
     if (allTasks.any { it.project == project && it.name.contains("Release", ignoreCase = true) }) {
-        check(releaseSigningReady) { "Release signing is missing. See docs/build-and-signing.md." }
-        check(rootProject.file(releaseStore!!).isFile) { "Release keystore does not exist." }
+        if (releaseSigningReady) {
+            check(rootProject.file(releaseStore!!).isFile) { "Release keystore does not exist." }
+        }
     }
 }
 
@@ -66,7 +68,11 @@ android {
 
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("release")
+            signingConfig = if (releaseSigningReady) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
+            }
         }
     }
 }

@@ -18,6 +18,14 @@ test('explicit manual publishing uses the requested tag on this commit', () => {
 test('tag pushes publish and label all packages with the tag', () => {
   assert.equal(releaseConfig({ ...base, GITHUB_EVENT_NAME: 'push', GITHUB_REF: 'refs/tags/v1.2.3', GITHUB_REF_NAME: 'v1.2.3' }, () => base.GITHUB_SHA).publish, 'true');
 });
+test('a lyrics tag publishes as its own release name', () => {
+  assert.deepEqual(releaseConfig({
+    ...base,
+    GITHUB_EVENT_NAME: 'push',
+    GITHUB_REF: 'refs/tags/v0.18-lyrics.1',
+    GITHUB_REF_NAME: 'v0.18-lyrics.1',
+  }, () => base.GITHUB_SHA), { publish: 'true', tag: 'v0.18-lyrics.1', label: 'v0.18-lyrics.1' });
+});
 test('publishing rejects missing, malformed, injected and conflicting tags', () => {
   for (const tag of ['', 'main', 'v1\nlabel=oops', 'v1.2;echo bad', '../v1.2', 'v1.2$(bad)']) {
     assert.throws(() => releaseConfig({ ...base, PUBLISH_RELEASE: 'true', RELEASE_TAG: tag }, () => null));

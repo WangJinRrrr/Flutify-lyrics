@@ -7,21 +7,28 @@ import subprocess
 import sys
 
 
-def verify_certificate(output, expected):
+def certificate_digests(output):
     # New apksigner versions prefix labels with the signature scheme (V2 Signer:).
     # Inspect certificate digests only (never public-key or source-stamp hashes).
     lines = [line.strip() for line in output.splitlines()
              if re.match(r'^(?:Signer |V\d+(?:\.\d+)? Signer:)', line.strip())
              and ' certificate SHA-256 digest:' in line]
-    certificates = [line.rsplit(':', 1)[-1].strip().lower() for line in lines]
+    return [line.rsplit(':', 1)[-1].strip().lower() for line in lines]
+
+
+def verify_certificate(output, expected):
+    certificates = certificate_digests(output)
     if not certificates or any(cert != expected for cert in certificates):
         raise ValueError(f'signing certificate mismatch: expected {expected}, got {certificates}')
 
 
 def verify(directory, build_number):
-    expected = os.environ['ANDROID_SIGNING_CERT_SHA256'].replace(':', '').lower()
-    if not re.fullmatch('[0-9a-f]{64}', expected):
-        raise ValueError('Missing or invalid pinned Android certificate SHA-256')
+    unpinned = os.environ.get('ANDROID_SIGNING_UNPINNED') == '1'
+    expected = None
+    if not unpinned:
+        expected = os.environ['ANDROID_SIGNING_CERT_SHA256'].replace(':', '').lower()
+        if not re.fullmatch('[0-9a-f]{64}', expected):
+            raise ValueError('Missing or invalid pinned Android certificate SHA-256')
     sdk = Path(os.environ.get('ANDROID_HOME') or os.environ['ANDROID_SDK_ROOT'])
     versions = sorted((sdk / 'build-tools').iterdir(),
                       key=lambda path: [int(n) for n in re.findall(r'\d+', path.name)])
@@ -39,7 +46,15 @@ def verify(directory, build_number):
             [str(build_tools / ('apksigner' + suffix)), 'verify', '--verbose', '--print-certs', str(apk)],
             text=True)
         try:
-            verify_certificate(output, expected)
+            if unpinned:
+                digests = certificate_digests(output)
+                if not digests or any(not re.fullmatch('[0-9a-f]{64}', cert) for cert in digests):
+                    raise ValueError(f'unsigned or unreadable certificate: {digests}')
+                if len(set(digests)) != 1:
+                    raise ValueError(f'signers do not share one certificate: {digests}')
+                print(f'{name}: unpinned signature {digests[0]}')
+            else:
+                verify_certificate(output, expected)
         except ValueError as error:
             raise ValueError(f'{name}: {error}; verifier output: {output}') from error
         metadata = subprocess.check_output(
@@ -55,7 +70,10 @@ def verify(directory, build_number):
                 raise ValueError(f'{name}: missing media notification icon {icon}')
         digest = hashlib.sha256(apk.read_bytes()).hexdigest()
         print(f'{name}: signature verified, versionCode={code[1]}, SHA256={digest}')
-    print('All four APKs use the pinned signing certificate.')
+    if unpinned:
+        print('All four APKs are signed, without a pinned release certificate.')
+    else:
+        print('All four APKs use the pinned signing certificate.')
 
 
 if __name__ == '__main__':

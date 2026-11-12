@@ -7,8 +7,8 @@ function releaseConfig(env, resolveTag) {
   const publish = Boolean(tagPush || manual);
   const tag = tagPush ? env.GITHUB_REF_NAME : (env.RELEASE_TAG || '').trim();
   if (publish) {
-    if (!/^v\d+(?:\.\d+){1,2}(?:-(?:alpha|beta|rc)(?:[.-]?\d+)?)?$/.test(tag)) {
-      throw new Error('Publishing requires a version tag, for example v0.04-beta or v1.2.3.');
+    if (!/^v\d+(?:\.\d+){1,2}(?:-(?:alpha|beta|rc|lyrics)(?:[.-]?\d+)?)?$/.test(tag)) {
+      throw new Error('Publishing requires a version tag, for example v0.04-beta, v0.18-lyrics.1 or v1.2.3.');
     }
     const existing = resolveTag(tag);
     if (existing && existing !== env.GITHUB_SHA) {
