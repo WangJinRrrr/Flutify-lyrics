@@ -21,6 +21,15 @@ void RegisterDesktopLyricsPlugins(flutter::PluginRegistry* registry) {
       registry->GetRegistrarForPlugin("WindowManagerPlugin"));
 }
 
+void StyleDesktopLyricsWindow(HWND hwnd) {
+  if (!hwnd) return;
+  LONG style = GetWindowLong(hwnd, GWL_STYLE);
+  style &= ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU);
+  SetWindowLong(hwnd, GWL_STYLE, style);
+  SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
+               SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+}
+
 }  // namespace
 
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
@@ -51,6 +60,9 @@ bool FlutterWindow::OnCreate() {
     auto* flutter_view_controller =
         reinterpret_cast<flutter::FlutterViewController*>(controller);
     RegisterDesktopLyricsPlugins(flutter_view_controller->engine());
+    HWND hwnd = GetAncestor(flutter_view_controller->view()->GetNativeWindow(),
+                            GA_ROOT);
+    StyleDesktopLyricsWindow(hwnd);
   });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 

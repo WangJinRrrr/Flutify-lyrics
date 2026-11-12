@@ -94,15 +94,15 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
       Rect.fromLTWH(bounds.x, bounds.y, bounds.width, bounds.height),
     );
     await windowManager.setTitle('桌面歌词');
-    await windowManager.setAsFrameless();
-    // setHasShadow 只有 Windows 实现。Linux 上调用会变成 MissingPluginException，
-    // 不能因此把整个子窗口判失败。
-    if (Platform.isWindows) {
-      await windowManager.setHasShadow(false);
+    // Windows 上 window_manager 的 setAsFrameless / 透明 / 置顶会在平台通道里改窗口样式，
+    // 近期引擎里这会把进程打成 0xC0000005。那些样式改由子窗口创建回调直接作用于子 HWND。
+    // 这里不再对任何窗口调用这些接口。
+    if (!Platform.isWindows) {
+      await windowManager.setAsFrameless();
+      await windowManager.setSkipTaskbar(true);
+      await windowManager.setAlwaysOnTop(true);
+      await windowManager.setBackgroundColor(Colors.transparent);
     }
-    await windowManager.setSkipTaskbar(true);
-    await windowManager.setAlwaysOnTop(true);
-    await windowManager.setBackgroundColor(Colors.transparent);
     windowManager.addListener(this);
     await windowManager.show();
   }
