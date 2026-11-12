@@ -84,8 +84,12 @@ import 'services/spotify_api_service.dart';
 import 'services/storage_service.dart';
 import 'services/updates/update_installer.dart';
 import 'services/updates/update_service.dart';
+import 'services/desktop_lyrics/desktop_lyrics_host.dart';
+import 'services/desktop_lyrics/desktop_lyrics_protocol.dart';
 import 'services/taskbar_lyrics/taskbar_lyrics_channel.dart';
 import 'services/taskbar_lyrics/taskbar_lyrics_controls.dart';
+import 'ui/desktop_lyrics/desktop_lyrics_window.dart';
+import 'ui/widgets/desktop_lyrics_binding.dart';
 import 'ui/screens/main_shell.dart';
 import 'ui/navigation/app_routes.dart';
 import 'ui/shell/desktop/desktop_window.dart';
@@ -115,7 +119,12 @@ bool _savedHyperMaterial(StorageService storage) {
   }
 }
 
-Future<void> main() async {
+Future<void> main(List<String> args) async {
+  // 桌面歌词是独立引擎。这里直接进入子窗口，避免再初始化音频和登录。
+  if (isDesktopLyricsEntrypoint(args)) {
+    await runDesktopLyricsWindow();
+    return;
+  }
   // 必须先于任何其他 binding 创建：帧率上限在帧调度入口生效
   FrameRateBinding.ensureInitialized();
   // 解码后位图缓存默认 1000 张 / 100 MiB。封面都按显示尺寸解码（见 CoverImage），
@@ -270,6 +279,8 @@ Future<Widget> _initializeApp(ValueChanged<String> reportStage) async {
   final taskbarLyrics = Platform.isWindows
       ? TaskbarLyricsControls(MethodChannelTaskbarLyrics())
       : null;
+  // Android 不创建桌面歌词控制器，插件也没有 Android 实现。
+  final desktopLyrics = createDesktopLyricsController();
   // Android：蓝牙（车机）歌词与 Flyme 状态栏歌词包在通知栏媒体控制外面
   final lyricBridge = Platform.isAndroid && systemControls != null
       ? LyricMetadataControls(systemControls, MethodChannelLyricBridge())
@@ -377,6 +388,7 @@ Future<Widget> _initializeApp(ValueChanged<String> reportStage) async {
     lyricsTranslation: lyricsTranslation,
     qqLyricsTranslation: qqLyricsTranslation,
     taskbarLyrics: taskbarLyrics,
+    desktopLyrics: desktopLyrics,
     lyricBridge: lyricBridge,
     widgetBridge: widgetBridge,
     playbackRegionGate: playbackRegionGate,
@@ -428,6 +440,9 @@ class FlutifyApp extends StatelessWidget {
   /// 任务栏歌词（Windows）；已包含在 [mediaControls] 里，这里供界面层绑定设置与歌词来源。
   final TaskbarLyricsControls? taskbarLyrics;
 
+  /// 桌面歌词窗口宿主。Android 与测试为 null，设置页和歌词按钮随之隐藏。
+  final DesktopLyricsController? desktopLyrics;
+
   /// 蓝牙（车机）歌词 / Flyme 状态栏歌词（Android）；已包含在 [mediaControls] 里，这里供界面层绑定。
   final LyricMetadataControls? lyricBridge;
 
@@ -458,6 +473,7 @@ class FlutifyApp extends StatelessWidget {
     this.lyricsTranslation,
     this.qqLyricsTranslation,
     this.taskbarLyrics,
+    this.desktopLyrics,
     this.lyricBridge,
     this.widgetBridge,
     this.playbackRegionGate,
@@ -643,6 +659,7 @@ class FlutifyApp extends StatelessWidget {
           },
         ),
         Provider<TaskbarLyricsControls?>.value(value: taskbarLyrics),
+        Provider<DesktopLyricsController?>.value(value: desktopLyrics),
         Provider<LyricMetadataControls?>.value(value: lyricBridge),
         Provider<WidgetBridge?>.value(value: widgetBridge),
         // 设置页「存储」分组：音频缓存占用 / 上限 / 清除
@@ -987,9 +1004,13 @@ class _ThemedApp extends StatelessWidget {
                     behavior: HitTestBehavior.translucent,
                     onPointerDown: _onMouseNavigation,
                     child: MacMenuBar(
-                      child: TaskbarLyricsBinding(
-                        child: LyricBridgeBinding(
-                          child: WindowFrame(child: HyperGlassWarmup(child: child!)),
+                      child: DesktopLyricsBinding(
+                        child: TaskbarLyricsBinding(
+                          child: LyricBridgeBinding(
+                            child: WindowFrame(
+                              child: HyperGlassWarmup(child: child!),
+                            ),
+                          ),
                         ),
                       ),
                     ),

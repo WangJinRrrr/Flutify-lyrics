@@ -13,6 +13,7 @@ import '../../navigation/app_routes.dart';
 import '../../widgets/connect/remote_progress.dart';
 import '../../widgets/connect/remote_transport_controls.dart';
 import '../../widgets/cover_image.dart';
+import '../../widgets/desktop_lyrics_buttons.dart';
 import '../../widgets/liquid_glass.dart';
 import '../../widgets/marquee_text.dart';
 import '../../widgets/playback_scrubber.dart';
@@ -404,6 +405,7 @@ class _PlayerSceneViewState extends State<PlayerSceneView> {
             : Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
+                  const DesktopLyricsButtons(),
                   const LyricsTranslationButton(),
                   // 桌面对话框里额外提供沉浸式全屏歌词入口。
                   if (widget.immersiveEntry &&

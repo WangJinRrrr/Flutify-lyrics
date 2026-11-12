@@ -28,6 +28,7 @@
 - 可选双语歌词：保留 LRCLIB 对照译文，或查询网易云社区译文并按时间轴对齐
 - 桌面沉浸式歌词（F11），支持直接收藏歌曲
 - Windows 任务栏歌词：嵌在任务栏里，不需要额外软件
+- 桌面歌词：无边框、置顶、透明的独立窗口。没有逐字时间时整行点亮；可拖动，锁定后点击穿透。开关在设置页「桌面歌词」、桌面歌词窗口和歌词面板
 
 **Spotify Connect**
 - 遥控同账号的其他设备（手机、电脑、音箱），也能把播放转到本机
@@ -93,6 +94,8 @@ Windows 便携版解压后运行 `Flutify.exe`。两种发行方式均附带 MSV
 ## 📄 许可证
 
 [MIT License](LICENSE)。随附的第三方组件遵循各自的许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+桌面歌词的视觉参考了 [Folia-major](https://github.com/chthollyphile/folia-major) classic 歌词（提交 [`a44758bbc02929225ca7304b5a4c4580d7b4e87b`](https://github.com/chthollyphile/folia-major/commit/a44758bbc02929225ca7304b5a4c4580d7b4e87b)，AGPL-3.0）的呼吸、行进入/离开、整行字形和强调色光晕。这部分由本仓库用 Dart 重写，没有复制其源码、动画表或注释，也没有引入该项目的其他部分。说明见 [NOTICE](NOTICE)。本仓库代码的许可证仍是 MIT。
 
 开发相关文档见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 

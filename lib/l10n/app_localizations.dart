@@ -2171,6 +2171,72 @@ abstract class AppLocalizations {
   /// **'任务栏图标居中时显示在左侧，居左时显示在系统托盘左边；任务栏竖向时自动停用。悬停显示播放控制，点按打开 Flutify，右键重新获取歌词'**
   String get settingsTaskbarLyricsSubtitle;
 
+  /// No description provided for @desktopLyricsSection.
+  ///
+  /// In zh, this message translates to:
+  /// **'桌面歌词'**
+  String get desktopLyricsSection;
+
+  /// No description provided for @desktopLyricsShow.
+  ///
+  /// In zh, this message translates to:
+  /// **'显示桌面歌词'**
+  String get desktopLyricsShow;
+
+  /// No description provided for @desktopLyricsShowSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'在桌面置顶显示当前行。未锁定时可以拖动，位置会记住'**
+  String get desktopLyricsShowSubtitle;
+
+  /// No description provided for @desktopLyricsLock.
+  ///
+  /// In zh, this message translates to:
+  /// **'锁定'**
+  String get desktopLyricsLock;
+
+  /// No description provided for @desktopLyricsLockSubtitle.
+  ///
+  /// In zh, this message translates to:
+  /// **'锁定后点击会穿透窗口，可在这里或歌词面板解锁'**
+  String get desktopLyricsLockSubtitle;
+
+  /// No description provided for @desktopLyricsToggle.
+  ///
+  /// In zh, this message translates to:
+  /// **'桌面歌词'**
+  String get desktopLyricsToggle;
+
+  /// No description provided for @desktopLyricsUnlock.
+  ///
+  /// In zh, this message translates to:
+  /// **'解锁桌面歌词'**
+  String get desktopLyricsUnlock;
+
+  /// No description provided for @desktopLyricsLoading.
+  ///
+  /// In zh, this message translates to:
+  /// **'正在载入歌词'**
+  String get desktopLyricsLoading;
+
+  /// No description provided for @desktopLyricsEmpty.
+  ///
+  /// In zh, this message translates to:
+  /// **'暂无歌词'**
+  String get desktopLyricsEmpty;
+
+  /// No description provided for @desktopLyricsUnsynced.
+  ///
+  /// In zh, this message translates to:
+  /// **'歌词未同步'**
+  String get desktopLyricsUnsynced;
+
+  /// No description provided for @desktopLyricsInterlude.
+  ///
+  /// In zh, this message translates to:
+  /// **'间奏'**
+  String get desktopLyricsInterlude;
+
   /// No description provided for @settingsTaskbarLyricsColor.
   ///
   /// In zh, this message translates to:

@@ -41,6 +41,12 @@ Flutify 不打包、不修改该浏览器，其许可证归 Google / 各发行�
 **设置 → 关于 → 开源许可** 查看（由 Flutter 根据 `pubspec.lock` 自动汇总）。Android 端音频播放使用的 ExoPlayer
 （经 just_audio）为 Apache License 2.0。
 
+## 视觉参考（未包含源码）
+
+桌面歌词的呼吸、行进入/离开、整行字形和强调色光晕参考了 Folia-major classic
+（<https://github.com/chthollyphile/folia-major>，提交 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`，AGPL-3.0）。
+本仓库用 Dart 重写了这些效果，没有收录该项目的源码、动画表或注释。详见 [NOTICE](NOTICE)。本仓库许可证仍是 MIT。
+
 ## 商标
 
 Spotify 是 Spotify AB 的商标。Flutify 与 Spotify AB 无任何关联，未获其认可或授权。

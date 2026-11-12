@@ -4,6 +4,7 @@ import '../../../l10n/l10n.dart';
 import '../../../models/track.dart';
 import '../../widgets/connect/now_playing_source.dart';
 import '../../widgets/cover_image.dart';
+import '../../widgets/desktop_lyrics_buttons.dart';
 import '../../widgets/empty_state.dart';
 import '../../widgets/liquid_glass.dart';
 import '../../widgets/player_controls.dart';
@@ -132,7 +133,13 @@ class _Header extends StatelessWidget {
                   const Positioned(
                     top: 0,
                     right: 0,
-                    child: LyricsTranslationButton(),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        DesktopLyricsButtons(),
+                        LyricsTranslationButton(),
+                      ],
+                    ),
                   ),
               ],
             ),

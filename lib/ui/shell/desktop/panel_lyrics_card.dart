@@ -11,6 +11,7 @@ import '../../screens/player/lyrics/lyrics_backdrop.dart';
 import '../../screens/player/lyrics/lyrics_view.dart';
 import '../../screens/player/lyrics/lyrics_translation_controls.dart';
 import '../../widgets/cover_image.dart';
+import '../../widgets/desktop_lyrics_buttons.dart';
 import '../../widgets/marquee_text.dart';
 import '../shell_layout_controller.dart';
 
@@ -93,6 +94,7 @@ class PanelLyricsCard extends StatelessWidget {
                             ? _TrackLabel(track: track)
                             : _CardLabel(text: l10n.lyricsTitle),
                       ),
+                      const DesktopLyricsButtons(),
                       const LyricsTranslationButton(),
                       const SizedBox(width: 8),
                       GlassIconButton(

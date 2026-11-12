@@ -1133,6 +1133,41 @@ class AppLocalizationsJa extends AppLocalizations {
       'アイコンが中央揃えの場合は左端、左揃えの場合は通知領域の左に表示します。縦型タスクバーでは停止します。ホバーで再生操作、クリックで Flutify を開き、右クリックで歌詞を再読み込みできます';
 
   @override
+  String get desktopLyricsSection => 'デスクトップ歌詞';
+
+  @override
+  String get desktopLyricsShow => 'デスクトップ歌詞を表示';
+
+  @override
+  String get desktopLyricsShowSubtitle =>
+      '再生中の行を最前面に表示します。ロックしていないときはドラッグでき、位置は記憶されます';
+
+  @override
+  String get desktopLyricsLock => 'ロック';
+
+  @override
+  String get desktopLyricsLockSubtitle =>
+      'ロック中のクリックは後ろのウィンドウに通ります。ここか歌詞パネルから解除できます';
+
+  @override
+  String get desktopLyricsToggle => 'デスクトップ歌詞';
+
+  @override
+  String get desktopLyricsUnlock => 'デスクトップ歌詞のロックを解除';
+
+  @override
+  String get desktopLyricsLoading => '歌詞を読み込み中';
+
+  @override
+  String get desktopLyricsEmpty => '歌詞がありません';
+
+  @override
+  String get desktopLyricsUnsynced => '歌詞は同期されていません';
+
+  @override
+  String get desktopLyricsInterlude => '間奏';
+
+  @override
   String get settingsTaskbarLyricsColor => '文字色';
 
   @override

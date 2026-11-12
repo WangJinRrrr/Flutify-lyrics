@@ -1176,6 +1176,41 @@ class AppLocalizationsEn extends AppLocalizations {
       'Shown on the left when taskbar icons are centered, or just left of the system tray when left-aligned; paused on vertical taskbars. Hover for playback controls, click to open Flutify, right-click to reload lyrics';
 
   @override
+  String get desktopLyricsSection => 'Desktop lyrics';
+
+  @override
+  String get desktopLyricsShow => 'Show desktop lyrics';
+
+  @override
+  String get desktopLyricsShowSubtitle =>
+      'Pins the current line above other windows. Drag it while unlocked; the position is remembered';
+
+  @override
+  String get desktopLyricsLock => 'Lock';
+
+  @override
+  String get desktopLyricsLockSubtitle =>
+      'While locked, clicks pass through the window. Unlock here or from the lyrics panel';
+
+  @override
+  String get desktopLyricsToggle => 'Desktop lyrics';
+
+  @override
+  String get desktopLyricsUnlock => 'Unlock desktop lyrics';
+
+  @override
+  String get desktopLyricsLoading => 'Loading lyrics';
+
+  @override
+  String get desktopLyricsEmpty => 'No lyrics';
+
+  @override
+  String get desktopLyricsUnsynced => 'Lyrics are not synced';
+
+  @override
+  String get desktopLyricsInterlude => 'Interlude';
+
+  @override
   String get settingsTaskbarLyricsColor => 'Text color';
 
   @override

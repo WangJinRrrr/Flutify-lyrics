@@ -112,6 +112,12 @@ class AppPreferences {
 
   /// Windows：把当前歌词嵌入任务栏（天气小组件右侧）。
   final bool taskbarLyrics;
+
+  /// 桌面歌词：独立置顶窗口。Android 不创建窗口，开关仍可保存。
+  final bool desktopLyrics;
+
+  /// 锁定后桌面歌词窗口忽略鼠标，点击穿透到后面的窗口。
+  final bool desktopLyricsLocked;
   final TaskbarLyricsColor taskbarLyricsColor;
 
   /// [TaskbarLyricsColor.custom] 时的颜色（ARGB）。
@@ -176,6 +182,8 @@ class AppPreferences {
     this.lyricsAutoTranslate = true,
     this.lyricsBilingual = false,
     this.taskbarLyrics = false,
+    this.desktopLyrics = false,
+    this.desktopLyricsLocked = false,
     this.taskbarLyricsColor = TaskbarLyricsColor.auto,
     this.taskbarLyricsCustomColor = defaultTaskbarLyricsCustomColor,
     this.taskbarLyricsOpacity = 100,
@@ -236,6 +244,8 @@ class AppPreferences {
     bool? lyricsAutoTranslate,
     bool? lyricsBilingual,
     bool? taskbarLyrics,
+    bool? desktopLyrics,
+    bool? desktopLyricsLocked,
     TaskbarLyricsColor? taskbarLyricsColor,
     int? taskbarLyricsCustomColor,
     int? taskbarLyricsOpacity,
@@ -293,6 +303,8 @@ class AppPreferences {
       lyricsAutoTranslate: lyricsAutoTranslate ?? this.lyricsAutoTranslate,
       lyricsBilingual: lyricsBilingual ?? this.lyricsBilingual,
       taskbarLyrics: taskbarLyrics ?? this.taskbarLyrics,
+      desktopLyrics: desktopLyrics ?? this.desktopLyrics,
+      desktopLyricsLocked: desktopLyricsLocked ?? this.desktopLyricsLocked,
       taskbarLyricsColor: taskbarLyricsColor ?? this.taskbarLyricsColor,
       taskbarLyricsCustomColor:
           taskbarLyricsCustomColor ?? this.taskbarLyricsCustomColor,
@@ -342,6 +354,8 @@ class AppPreferences {
     'lyricsAutoTranslate': lyricsAutoTranslate,
     'lyricsBilingual': lyricsBilingual,
     'taskbarLyrics': taskbarLyrics,
+    'desktopLyrics': desktopLyrics,
+    'desktopLyricsLocked': desktopLyricsLocked,
     'taskbarLyricsColor': taskbarLyricsColor.name,
     'taskbarLyricsCustomColor': taskbarLyricsCustomColor,
     'taskbarLyricsOpacity': taskbarLyricsOpacity,
@@ -457,6 +471,11 @@ class AppPreferences {
       ),
       lyricsBilingual: flag(json['lyricsBilingual'], d.lyricsBilingual),
       taskbarLyrics: flag(json['taskbarLyrics'], d.taskbarLyrics),
+      desktopLyrics: flag(json['desktopLyrics'], d.desktopLyrics),
+      desktopLyricsLocked: flag(
+        json['desktopLyricsLocked'],
+        d.desktopLyricsLocked,
+      ),
       taskbarLyricsColor: pick(
         TaskbarLyricsColor.values,
         json['taskbarLyricsColor'],
@@ -553,6 +572,8 @@ class AppPreferences {
       other.lyricsAutoTranslate == lyricsAutoTranslate &&
       other.lyricsBilingual == lyricsBilingual &&
       other.taskbarLyrics == taskbarLyrics &&
+      other.desktopLyrics == desktopLyrics &&
+      other.desktopLyricsLocked == desktopLyricsLocked &&
       other.taskbarLyricsColor == taskbarLyricsColor &&
       other.taskbarLyricsCustomColor == taskbarLyricsCustomColor &&
       other.taskbarLyricsOpacity == taskbarLyricsOpacity &&
@@ -597,6 +618,8 @@ class AppPreferences {
     lyricsAutoTranslate,
     lyricsBilingual,
     taskbarLyrics,
+    desktopLyrics,
+    desktopLyricsLocked,
     taskbarLyricsColor,
     taskbarLyricsCustomColor,
     taskbarLyricsOpacity,

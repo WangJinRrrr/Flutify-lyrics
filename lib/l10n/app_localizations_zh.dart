@@ -1134,6 +1134,39 @@ class AppLocalizationsZh extends AppLocalizations {
       '任务栏图标居中时显示在左侧，居左时显示在系统托盘左边；任务栏竖向时自动停用。悬停显示播放控制，点按打开 Flutify，右键重新获取歌词';
 
   @override
+  String get desktopLyricsSection => '桌面歌词';
+
+  @override
+  String get desktopLyricsShow => '显示桌面歌词';
+
+  @override
+  String get desktopLyricsShowSubtitle => '在桌面置顶显示当前行。未锁定时可以拖动，位置会记住';
+
+  @override
+  String get desktopLyricsLock => '锁定';
+
+  @override
+  String get desktopLyricsLockSubtitle => '锁定后点击会穿透窗口，可在这里或歌词面板解锁';
+
+  @override
+  String get desktopLyricsToggle => '桌面歌词';
+
+  @override
+  String get desktopLyricsUnlock => '解锁桌面歌词';
+
+  @override
+  String get desktopLyricsLoading => '正在载入歌词';
+
+  @override
+  String get desktopLyricsEmpty => '暂无歌词';
+
+  @override
+  String get desktopLyricsUnsynced => '歌词未同步';
+
+  @override
+  String get desktopLyricsInterlude => '间奏';
+
+  @override
   String get settingsTaskbarLyricsColor => '文字颜色';
 
   @override
@@ -3269,6 +3302,39 @@ class AppLocalizationsZhHant extends AppLocalizationsZh {
   @override
   String get settingsTaskbarLyricsSubtitle =>
       '任務欄圖標居中時顯示在左側，居左時顯示在系統托盤左邊；任務欄豎向時自動停用。懸停顯示播放控制，點按打開 Flutify，右鍵重新獲取歌詞';
+
+  @override
+  String get desktopLyricsSection => '桌面歌詞';
+
+  @override
+  String get desktopLyricsShow => '顯示桌面歌詞';
+
+  @override
+  String get desktopLyricsShowSubtitle => '在桌面置頂顯示當前行。未鎖定時可以拖動，位置會記住';
+
+  @override
+  String get desktopLyricsLock => '鎖定';
+
+  @override
+  String get desktopLyricsLockSubtitle => '鎖定後點擊會穿透視窗，可在這裡或歌詞面板解鎖';
+
+  @override
+  String get desktopLyricsToggle => '桌面歌詞';
+
+  @override
+  String get desktopLyricsUnlock => '解鎖桌面歌詞';
+
+  @override
+  String get desktopLyricsLoading => '正在載入歌詞';
+
+  @override
+  String get desktopLyricsEmpty => '暫無歌詞';
+
+  @override
+  String get desktopLyricsUnsynced => '歌詞未同步';
+
+  @override
+  String get desktopLyricsInterlude => '間奏';
 
   @override
   String get settingsTaskbarLyricsColor => '文字顏色';

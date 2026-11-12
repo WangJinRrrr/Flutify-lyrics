@@ -68,6 +68,8 @@ dependencies:
   window_manager: ^0.5.2
   # 记住窗口位置时校验显示器是否还在（window_manager 已间接依赖，版本与其一致）
   screen_retriever: ^0.2.2
+  # 桌面歌词子窗口（独立引擎）。无 Android 实现，Android 不创建控制器。
+  desktop_multi_window: 0.3.1
   flutter_inappwebview: ^6.1.5
   audio_service: ^0.18.19
   pinyin: ^3.3.0

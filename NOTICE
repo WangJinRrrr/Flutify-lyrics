@@ -1,0 +1,12 @@
+# NOTICE
+
+本仓库基于 [Flutify](https://github.com/is-hp-is-mad/Flutify)（MIT）上游提交 `89c55a875a7f532c090abd95b7b551f2ce16e5a3`（v0.18）。原版权声明与许可证保留在 [LICENSE](LICENSE)。本仓库代码以 MIT 发布。
+
+桌面歌词窗口的视觉只参考了 [Folia-major](https://github.com/chthollyphile/folia-major) classic 歌词，提交 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`（AGPL-3.0）：
+
+- 整行呼吸浮动，大约 6.4 秒一个周期，暂停时停住
+- 行的进入和离开：淡入、缩放、模糊
+- 整行作为一个字形的姿态
+- 强调色的双层光晕，加上深色投影
+
+这些效果在本仓库里用 Dart 重新实现。没有复制 Folia-major 的源码、动画表或注释，也没有引入该项目的其他部分。Folia-major 的 AGPL-3.0 不改变本仓库的 MIT 许可证。
