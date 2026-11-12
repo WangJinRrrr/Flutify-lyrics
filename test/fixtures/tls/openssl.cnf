@@ -1,0 +1,15 @@
+# Public test-only key/certificate. Never use these credentials in production.
+# Regenerate: openssl req -x509 -newkey rsa:2048 -nodes -days 36500
+#   -config test/fixtures/tls/openssl.cnf
+#   -keyout test/fixtures/tls/localhost-key.pem -out test/fixtures/tls/localhost.pem
+[req]
+prompt = no
+distinguished_name = dn
+x509_extensions = extensions
+[dn]
+CN = localhost
+[extensions]
+subjectAltName = DNS:localhost
+basicConstraints = critical,CA:TRUE
+keyUsage = critical,digitalSignature,keyEncipherment,keyCertSign
+extendedKeyUsage = serverAuth

@@ -1,0 +1,7 @@
+# gen-l10n 配置：以简体中文 ARB 为模板，生成 lib/l10n/app_localizations*.dart。
+# 新增文案：先写 app_zh.arb（含 @描述），再同步 app_zh_Hant.arb、app_en.arb、app_ja.arb，运行 flutter gen-l10n。
+arb-dir: lib/l10n
+template-arb-file: app_zh.arb
+output-localization-file: app_localizations.dart
+output-class: AppLocalizations
+nullable-getter: false

@@ -1,0 +1,339 @@
+# 构建并发布 Android / Windows / macOS 安装包。
+# - 推送 v* 标签：三端构建完成后发布到 GitHub Releases（标签含 beta / alpha / rc 时标为预发布）；
+# - 手动运行默认只构建；勾选 publish_release 并填写 release_tag 后，全部构建成功才发布。
+# - 推送到 main：只构建，产物在本次运行的 Artifacts 里。
+# - macOS 测试包随 Release 发布，未做 Developer ID 签名和 Apple 公证。
+name: Build
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+    # 只改文档时不构建（标签推送不受影响）
+    paths-ignore: ['**.md', 'docs/**', 'LICENSE']
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: 'Publish after all platform builds pass'
+        type: boolean
+        default: false
+      release_tag:
+        description: 'Release tag (required when publishing, e.g. v0.04-beta)'
+        type: string
+        default: ''
+
+concurrency:
+  group: build-${{ github.event_name }}-${{ github.ref }}-${{ inputs.release_tag || '' }}
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+env:
+  FLUTTER_VERSION: '3.44.0'
+  # macOS 固定 3.44.9：该版本包含 Xcode 27 的 lipo 多架构校验修复
+  # （flutter/flutter#188625）；Windows / Android 暂时保持 3.44.0。
+  FLUTTER_VERSION_MACOS: '3.44.9'
+
+jobs:
+  prepare:
+    name: Validate build and release target
+    runs-on: ubuntu-latest
+    outputs:
+      publish: ${{ steps.config.outputs.publish }}
+      tag: ${{ steps.config.outputs.tag }}
+      label: ${{ steps.config.outputs.label }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - run: node --test tool/test_release_config.cjs
+      - run: node --test tool/test_macos_workflow.cjs
+      - run: node --test tool/test_eme_playback.cjs
+      - id: config
+        env:
+          PUBLISH_RELEASE: ${{ inputs.publish_release }}
+          RELEASE_TAG: ${{ inputs.release_tag }}
+        run: node tool/release_config.cjs
+
+  android:
+    name: Android APK
+    needs: prepare
+    env:
+      BUILD_LABEL: ${{ needs.prepare.outputs.label }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - name: Test playback recovery and authorization
+        run: |
+          flutter test
+          node --test tool/test_consent_auto_approve.cjs
+          python3 -m unittest discover -s tool -p test_verify_android_apks.py
+
+      # flutter_inappwebview_android 1.1.3 仍引用 proguard-android.txt，AGP 9 起直接报错；换成等价的 optimize 版
+      - name: Patch flutter_inappwebview_android for AGP 9
+        run: |
+          root=$(grep -o '"rootUri": *"file://[^"]*flutter_inappwebview_android-[^"]*"' .dart_tool/package_config.json \
+            | sed -E 's/.*"file:\/\/([^"]*)"/\1/')
+          sed -i "s/proguard-android.txt/proguard-android-optimize.txt/g" "$root/android/build.gradle"
+          grep -n "proguard" "$root/android/build.gradle"
+
+      - name: Restore fixed beta signing key
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+        run: |
+          test -n "$ANDROID_KEYSTORE_BASE64" || { echo 'Missing Android signing secrets'; exit 1; }
+          umask 077
+          printf '%s' "$ANDROID_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/flutify-beta.jks"
+          echo "ANDROID_KEYSTORE_PATH=$RUNNER_TEMP/flutify-beta.jks" >> "$GITHUB_ENV"
+          # Flutter 给 ABI 拆分包增加 1000/2000/3000/4000。批次间隔 10000，
+          # 使新通用包也能覆盖上一批的拆分包；重跑同一批时递增 attempt。
+          echo "ANDROID_BUILD_NUMBER=$(( (100 + GITHUB_RUN_NUMBER) * 10000 + GITHUB_RUN_ATTEMPT ))" >> "$GITHUB_ENV"
+
+      - name: Build APK（按 ABI 拆分 + 通用包）
+        env:
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          flutter build apk --release --split-per-abi --build-number="$ANDROID_BUILD_NUMBER" --dart-define=FLUTIFY_RELEASE_TAG=${{ needs.prepare.outputs.tag }}
+          flutter build apk --release --build-number="$ANDROID_BUILD_NUMBER" --dart-define=FLUTIFY_RELEASE_TAG=${{ needs.prepare.outputs.tag }}
+
+      - name: Verify APK signatures, version codes, and media icons
+        env:
+          ANDROID_SIGNING_CERT_SHA256: ${{ secrets.ANDROID_SIGNING_CERT_SHA256 }}
+        run: python3 tool/verify_android_apks.py build/app/outputs/flutter-apk "$ANDROID_BUILD_NUMBER"
+
+      - name: Remove temporary signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/flutify-beta.jks"
+
+      - name: Rename
+        run: |
+          cd build/app/outputs/flutter-apk
+          for f in app-*-release.apk; do
+            abi="${f#app-}"; abi="${abi%-release.apk}"
+            mv "$f" "Flutify-${BUILD_LABEL}-android-$abi.apk"
+          done
+          mv app-release.apk "Flutify-${BUILD_LABEL}-android-universal.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: android
+          path: build/app/outputs/flutter-apk/Flutify-*.apk
+
+  windows:
+    name: Windows ${{ matrix.arch }}
+    needs: prepare
+    env:
+      BUILD_LABEL: ${{ needs.prepare.outputs.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: x64
+            runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        if: matrix.arch == 'x64'
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+          architecture: ${{ matrix.arch }}
+
+      # 3.44.0 发布清单没有 Windows ARM64 SDK 压缩包；官方源码启动脚本支持
+      # 在 ARM64 宿主下载原生 Dart。不能给 flutter-action 传 arm64 后期待它找到压缩包。
+      - name: Bootstrap native Flutter SDK on Windows ARM64
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw 'Expected native ARM64 runner shell' }
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter-arm64'
+          git clone --depth 1 --branch $env:FLUTTER_VERSION https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter clone failed' }
+          $revision = git -C $sdk rev-parse HEAD
+          if ($revision -ne '559ffa3f75e7402d65a8def9c28389a9b2e6fe42') { throw 'Unexpected Flutter 3.44.0 revision' }
+          & "$sdk/bin/flutter.bat" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter bootstrap failed' }
+          $dartVersion = & "$sdk/bin/dart.bat" --version 2>&1
+          if ($dartVersion -notmatch 'windows_arm64') { throw "Expected ARM64 Dart: $dartVersion" }
+          "$sdk/bin" >> $env:GITHUB_PATH
+
+      - run: flutter pub get
+
+      - name: Test Windows PowerShell 5.1 update handoff
+        run: python tool/test_windows_update.py -v
+
+      - run: flutter build windows --release --dart-define=FLUTIFY_RELEASE_TAG=${{ needs.prepare.outputs.tag }}
+
+      - name: Verify native binary architecture
+        run: python tool/verify_windows_arch.py build/windows/${{ matrix.arch }}/runner/Release ${{ matrix.arch }}
+
+      - name: Verify app-local VC runtime dependencies
+        shell: pwsh
+        run: ./tool/verify_windows_runtime.ps1 -Directory build/windows/${{ matrix.arch }}/runner/Release -BuildDirectory build/windows/${{ matrix.arch }}
+
+      - name: Install Inno Setup compiler
+        shell: pwsh
+        run: |
+          $installer = Join-Path $env:RUNNER_TEMP 'innosetup-6.7.3.exe'
+          $compilerDir = Join-Path $env:RUNNER_TEMP 'inno-6.7.3'
+          Invoke-WebRequest 'https://github.com/jrsoftware/issrc/releases/download/is-6_7_3/innosetup-6.7.3.exe' -OutFile $installer
+          if ((Get-FileHash $installer -Algorithm SHA256).Hash -ne '9C73C3BAE7ED48D44112A0F48E66742C00090BDB5BEF71D9D3C056C66E97B732') { throw 'Inno Setup checksum mismatch' }
+          # The x86 compiler runs on both Windows x64 and ARM64. Portable mode
+          # avoids depending on Chocolatey or the runner's preinstalled version.
+          $install = Start-Process -FilePath $installer -ArgumentList @('/VERYSILENT', '/SUPPRESSMSGBOXES', '/NORESTART', '/CURRENTUSER', '/PORTABLE=1', "/DIR=`"$compilerDir`"") -WindowStyle Hidden -Wait -PassThru
+          if ($install.ExitCode -ne 0) { throw "Inno Setup extraction failed: $($install.ExitCode)" }
+          $compiler = Join-Path $compilerDir 'ISCC.exe'
+          if (!(Test-Path -LiteralPath $compiler)) { throw 'Inno Setup compiler missing' }
+          "INNO_COMPILER=$compiler" >> $env:GITHUB_ENV
+
+      - name: Package portable ZIP and installer
+        shell: pwsh
+        run: |
+          ./tool/package_windows.ps1 -Arch '${{ matrix.arch }}' -Label $env:BUILD_LABEL -Compiler $env:INNO_COMPILER
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-${{ matrix.arch }}
+          path: |
+            dist/*.zip
+            dist/*-setup.exe
+
+  macos:
+    name: macOS
+    needs: prepare
+    env:
+      BUILD_LABEL: ${{ needs.prepare.outputs.label }}
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION_MACOS }}
+          channel: stable
+          cache: true
+
+      - run: flutter pub get
+
+      - run: flutter test
+
+      - run: flutter build macos --release --dart-define=FLUTIFY_RELEASE_TAG=${{ needs.prepare.outputs.tag }}
+
+      # macOS 测试包：未做 Developer ID 签名和 Apple 公证
+      - name: Zip
+        run: |
+          name="Flutify-${BUILD_LABEL}-macos.zip"
+          ditto -c -k --keepParent build/macos/Build/Products/Release/Flutify.app "$name"
+          echo "ZIP_NAME=$name" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: macos
+          path: ${{ env.ZIP_NAME }}
+
+  linux:
+    name: Linux x64
+    needs: prepare
+    env:
+      BUILD_LABEL: ${{ needs.prepare.outputs.label }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: subosito/flutter-action@v2
+        with:
+          flutter-version: ${{ env.FLUTTER_VERSION }}
+          channel: stable
+          cache: true
+
+      - name: Install Linux build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ninja-build libgtk-3-dev liblzma-dev libblkid-dev
+
+      - run: flutter pub get
+
+      - run: flutter test
+
+      - run: flutter build linux --release --dart-define=FLUTIFY_RELEASE_TAG=${{ needs.prepare.outputs.tag }}
+
+      - name: Package .deb and portable tarball
+        run: |
+          tool/package_linux_deb.sh --label "$BUILD_LABEL" --bundle build/linux/x64/release/bundle --output dist
+          tool/package_linux_tarball.sh --label "$BUILD_LABEL" --bundle build/linux/x64/release/bundle --output dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: linux
+          path: |
+            dist/*.deb
+            dist/*.tar.gz
+
+  release:
+    name: Publish release
+    if: needs.prepare.outputs.publish == 'true'
+    needs: [prepare, android, windows, macos, linux]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: '{android,windows-*,macos,linux}'
+          path: dist
+          merge-multiple: true
+
+      - name: Verify all packages and generate checksums
+        env:
+          BUILD_LABEL: ${{ needs.prepare.outputs.label }}
+        run: |
+          cd dist
+          for suffix in windows-x64.zip windows-x64-setup.exe windows-arm64.zip windows-arm64-setup.exe android-arm64-v8a.apk android-armeabi-v7a.apk android-x86_64.apk android-universal.apk macos.zip linux-x64.deb linux-x64.tar.gz; do
+            test -s "Flutify-${BUILD_LABEL}-${suffix}" || { echo "Missing package: ${suffix}"; exit 1; }
+          done
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 11
+          sha256sum Flutify-* > SHA256SUMS.txt
+
+      - name: Prepare release notes
+        env:
+          RELEASE_TAG: ${{ needs.prepare.outputs.tag }}
+        run: |
+          notes="docs/releases/${RELEASE_TAG}.md"
+          if [ -f "$notes" ]; then
+            cp "$notes" "$RUNNER_TEMP/release-notes.md"
+          else
+            printf '%s\n' 'Windows x64 / ARM64 提供安装版和便携版；Android 提供三种 ABI 与通用 APK；macOS 提供未做 Developer ID 签名和 Apple 公证的测试 ZIP；Linux x64 提供实验性 .deb 与发行版中立的 tar.gz。全部平台构建及产物校验通过后发布，校验和见 SHA256SUMS.txt。' '构建通过不代表所有设备兼容性问题已完成实机验证，已知问题见 README。' > "$RUNNER_TEMP/release-notes.md"
+          fi
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ needs.prepare.outputs.tag }}
+          target_commitish: ${{ github.sha }}
+          name: Flutify ${{ needs.prepare.outputs.tag }}
+          prerelease: ${{ contains(needs.prepare.outputs.tag, 'beta') || contains(needs.prepare.outputs.tag, 'alpha') || contains(needs.prepare.outputs.tag, 'rc') }}
+          body_path: ${{ runner.temp }}/release-notes.md
+          generate_release_notes: true
+          fail_on_unmatched_files: true
+          files: dist/*

@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- 播放用的隐藏 WebView 访问 App 自己在本机起的 HTTP 服务（http://127.0.0.1:随机端口）。
+     Android 9 起默认禁止明文 HTTP，这里只对本机回环地址放行，其余域名仍强制 HTTPS。 -->
+<network-security-config>
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="false">127.0.0.1</domain>
+        <domain includeSubdomains="false">localhost</domain>
+    </domain-config>
+</network-security-config>

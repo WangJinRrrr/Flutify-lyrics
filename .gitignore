@@ -1,0 +1,84 @@
+# Miscellaneous
+*.class
+*.log
+*.pyc
+__pycache__/
+*.swp
+.DS_Store
+.atom/
+.build/
+.buildlog/
+.signing/
+*.jks
+*.keystore
+/android/key.properties
+.env
+.env.*
+!.env.example
+!.env.*.example
+.history
+.svn/
+.swiftpm/
+migrate_working_dir/
+
+# Local task notes, conversation exports, and agent state
+/TODO.md
+/*待办*.md
+/docs/session-*-user-inputs.*
+/.codex/
+/.agents/
+/.local/
+
+# IntelliJ related
+*.iml
+*.ipr
+*.iws
+.idea/
+
+# The .vscode folder contains launch configuration and tasks you configure in
+# VS Code which you may wish to be included in version control, so this line
+# is commented out by default.
+#.vscode/
+
+# Flutter/Dart/Pub related
+**/doc/api/
+**/ios/Flutter/.last_build_id
+.dart_tool/
+.flutter-plugins-dependencies
+.pub-cache/
+.pub/
+/build/
+/dist/
+/coverage/
+
+# Runtime caches and browser profiles beside a locally launched executable
+FlutifyCache/
+*.WebView2/
+
+# Symbolication related
+app.*.symbols
+
+# Obfuscation related
+app.*.map.json
+
+# 接口探测输出（含账号数据）
+/tool/probe_out/
+
+# Android Studio will place build artifacts here
+/android/build/
+/android/app/debug
+/android/app/profile
+/android/app/release
+
+# 探针编译产物
+tool/**/*.exe
+tool/**/*.dll
+tool/**/*.obj
+tool/**/*.pdb
+tool/**/*.ilk
+tool/**/*.lib
+tool/**/*.exp
+
+# 仅本地保留的文档
+docs/RISK_REVIEW.md
+docs/WIDEVINE.md
