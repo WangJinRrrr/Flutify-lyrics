@@ -22,7 +22,7 @@ public static class DesktopLyricsWindows {
   public delegate bool EnumProc(IntPtr hWnd, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc lpEnumFunc, IntPtr lParam);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr hWnd);
-  [DllImport("user32.dll")] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
+  [DllImport("user32.dll", CharSet=CharSet.Unicode)] public static extern int GetWindowText(IntPtr hWnd, StringBuilder lpString, int nMaxCount);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr hWnd, out uint pid);
   public static List<string> Titles(uint pid) {
     var found = new List<string>();
@@ -32,7 +32,7 @@ public static class DesktopLyricsWindows {
       if (owner == pid && IsWindowVisible(h)) {
         var sb = new StringBuilder(512);
         GetWindowText(h, sb, sb.Capacity);
-        if (sb.Length > 0) found.Add(sb.ToString());
+        found.Add(sb.Length > 0 ? sb.ToString() : "(untitled)");
       }
       return true;
     }, IntPtr.Zero);

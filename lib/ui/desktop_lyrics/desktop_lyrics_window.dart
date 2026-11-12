@@ -85,26 +85,42 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
     }
   }
 
+  Future<void> _step(String name, Future<void> Function() action) async {
+    try {
+      await action();
+    } catch (error) {
+      debugPrint('[desktop-lyrics] $name 失败，继续显示窗口: $error');
+    }
+  }
+
   Future<void> _prepareWindow() async {
     final bounds = await _restoredBounds();
-    await windowManager.setMinimumSize(
-      const Size(DesktopLyricsBounds.minWidth, DesktopLyricsBounds.minHeight),
+    await _step(
+      'setMinimumSize',
+      () => windowManager.setMinimumSize(
+        const Size(DesktopLyricsBounds.minWidth, DesktopLyricsBounds.minHeight),
+      ),
     );
-    await windowManager.setBounds(
-      Rect.fromLTWH(bounds.x, bounds.y, bounds.width, bounds.height),
+    await _step(
+      'setBounds',
+      () => windowManager.setBounds(
+        Rect.fromLTWH(bounds.x, bounds.y, bounds.width, bounds.height),
+      ),
     );
-    await windowManager.setTitle('桌面歌词');
-    // Windows 上 window_manager 的 setAsFrameless / 透明 / 置顶会在平台通道里改窗口样式，
-    // 近期引擎里这会把进程打成 0xC0000005。那些样式改由子窗口创建回调直接作用于子 HWND。
-    // 这里不再对任何窗口调用这些接口。
+    await _step('setTitle', () => windowManager.setTitle('桌面歌词'));
+    // Windows 上 window_manager 改样式会把进程打成 0xC0000005。
+    // 无边框和置顶由子窗口创建回调直接写子 HWND。
     if (!Platform.isWindows) {
-      await windowManager.setAsFrameless();
-      await windowManager.setSkipTaskbar(true);
-      await windowManager.setAlwaysOnTop(true);
-      await windowManager.setBackgroundColor(Colors.transparent);
+      await _step('setAsFrameless', windowManager.setAsFrameless);
+      await _step('setSkipTaskbar', () => windowManager.setSkipTaskbar(true));
+      await _step('setAlwaysOnTop', () => windowManager.setAlwaysOnTop(true));
+      await _step(
+        'setBackgroundColor',
+        () => windowManager.setBackgroundColor(Colors.transparent),
+      );
     }
     windowManager.addListener(this);
-    await windowManager.show();
+    await _step('show', windowManager.show);
   }
 
   Future<DesktopLyricsBounds> _restoredBounds() async {

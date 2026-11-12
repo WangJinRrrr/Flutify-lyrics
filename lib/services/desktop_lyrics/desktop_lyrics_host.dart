@@ -59,6 +59,8 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
     try {
       await _ensureChannel();
       final window = await _obtainWindow();
+      await window.show();
+      _shown = true;
       _armReadyTimer();
       if (!_visible || !_childReady) return;
       await _deliver(window);

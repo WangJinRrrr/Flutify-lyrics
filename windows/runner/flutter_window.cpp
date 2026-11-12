@@ -28,6 +28,7 @@ void StyleDesktopLyricsWindow(HWND hwnd) {
   SetWindowLong(hwnd, GWL_STYLE, style);
   SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED);
+  SetWindowTextW(hwnd, L"桌面歌词");
 }
 
 }  // namespace
