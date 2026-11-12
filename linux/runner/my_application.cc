@@ -9,6 +9,21 @@
 
 #include "flutter/generated_plugin_registrant.h"
 #include "desktop_multi_window/desktop_multi_window_plugin.h"
+#include <screen_retriever_linux/screen_retriever_linux_plugin.h>
+#include <window_manager/window_manager_plugin.h>
+
+// 子引擎只注册桌面歌词自己的窗口插件。不要再走 fl_register_plugins：
+// 那会把桌面歌词窗口当成主窗口重新挂上，也会把主程序的其它插件再初始化一次。
+static void fl_register_desktop_lyrics_plugins(FlPluginRegistry* registry) {
+  g_autoptr(FlPluginRegistrar) screen_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry,
+                                                  "ScreenRetrieverLinuxPlugin");
+  screen_retriever_linux_plugin_register_with_registrar(screen_registrar);
+  g_autoptr(FlPluginRegistrar) window_registrar =
+      fl_plugin_registry_get_registrar_for_plugin(registry,
+                                                  "WindowManagerPlugin");
+  window_manager_plugin_register_with_registrar(window_registrar);
+}
 
 struct _MyApplication {
   GtkApplication parent_instance;
@@ -97,9 +112,10 @@ static void my_application_activate(GApplication* application) {
   gtk_widget_realize(GTK_WIDGET(view));
 
   fl_register_plugins(FL_PLUGIN_REGISTRY(view));
-  // 桌面歌词子窗口是另一个 Flutter 引擎，插件要在它创建时再注册一次。
+  // 子窗口是另一个引擎。desktop_multi_window 会在创建后自己注册通道；
+  // 这里只补 window_manager / screen_retriever，让它们作用在子窗口上。
   desktop_multi_window_plugin_set_window_created_callback(
-      [](FlPluginRegistry* registry) { fl_register_plugins(registry); });
+      fl_register_desktop_lyrics_plugins);
 
   g_autoptr(FlStandardMethodCodec) codec = fl_standard_method_codec_new();
   self->protocol_channel = fl_method_channel_new(

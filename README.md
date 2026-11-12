@@ -95,7 +95,7 @@ Windows 便携版解压后运行 `Flutify.exe`。两种发行方式均附带 MSV
 
 [MIT License](LICENSE)。随附的第三方组件遵循各自的许可证，见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
-桌面歌词的视觉参考了 [Folia-major](https://github.com/chthollyphile/folia-major) classic 歌词（提交 [`a44758bbc02929225ca7304b5a4c4580d7b4e87b`](https://github.com/chthollyphile/folia-major/commit/a44758bbc02929225ca7304b5a4c4580d7b4e87b)，AGPL-3.0）的呼吸、行进入/离开、整行字形和强调色光晕。这部分由本仓库用 Dart 重写，没有复制其源码、动画表或注释，也没有引入该项目的其他部分。说明见 [NOTICE](NOTICE)。本仓库代码的许可证仍是 MIT。
+桌面歌词的呼吸、入场离场、点亮缩放和双层光晕数值移植自 [Folia-major](https://github.com/chthollyphile/folia-major) classic 歌词（提交 [`a44758bbc02929225ca7304b5a4c4580d7b4e87b`](https://github.com/chthollyphile/folia-major/commit/a44758bbc02929225ca7304b5a4c4580d7b4e87b)，AGPL-3.0），只包含这些样式数值。说明和许可证影响见 [NOTICE](NOTICE)。仓库的 [LICENSE](LICENSE) 仍是 MIT。
 
 开发相关文档见 [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md)。
 

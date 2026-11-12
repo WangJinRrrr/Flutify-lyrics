@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:io';
 import 'dart:ui';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -66,12 +67,22 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
       return null;
     });
     if (!mounted) return;
-    await _prepareWindow();
-    if (!mounted) return;
-    await _applyLock(_locked);
+    try {
+      await _prepareWindow();
+    } catch (error, stack) {
+      debugPrint('[desktop-lyrics] 子窗口配置失败: $error\n$stack');
+      try {
+        await _host.invokeMethod<void>('failed', '$error');
+      } catch (_) {}
+      return;
+    }
     if (!mounted) return;
     setState(() => _windowReady = true);
-    await _host.invokeMethod<void>('ready');
+    try {
+      await _host.invokeMethod<void>('ready');
+    } catch (error, stack) {
+      debugPrint('[desktop-lyrics] 子窗口未能通知主窗口: $error\n$stack');
+    }
   }
 
   Future<void> _prepareWindow() async {
@@ -84,7 +95,11 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
     );
     await windowManager.setTitle('桌面歌词');
     await windowManager.setAsFrameless();
-    await windowManager.setHasShadow(false);
+    // setHasShadow 只有 Windows 实现。Linux 上调用会变成 MissingPluginException，
+    // 不能因此把整个子窗口判失败。
+    if (Platform.isWindows) {
+      await windowManager.setHasShadow(false);
+    }
     await windowManager.setSkipTaskbar(true);
     await windowManager.setAlwaysOnTop(true);
     await windowManager.setBackgroundColor(Colors.transparent);
@@ -101,7 +116,7 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
       if (saved != null) return saved;
     } catch (_) {}
     const width = 860.0;
-    const height = 220.0;
+    const height = 320.0;
     try {
       final display = await screenRetriever.getPrimaryDisplay();
       final origin = display.visiblePosition ?? Offset.zero;
@@ -269,7 +284,7 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
     final identity =
         '${presentation.phase.name}|${presentation.text}|${presentation.translation}';
     return AnimatedSwitcher(
-      duration: const Duration(milliseconds: 380),
+      duration: LyricMotion.lineMoveDuration,
       switchInCurve: Curves.easeOutCubic,
       switchOutCurve: Curves.easeInCubic,
       layoutBuilder: (current, previous) {
@@ -327,7 +342,7 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
     final style = TextStyle(
       fontFamily: 'MiSans',
       color: Colors.white,
-      fontSize: presentation.phase == DesktopLyricPhase.line ? 40 : 32,
+      fontSize: presentation.phase == DesktopLyricPhase.line ? 64 : 36,
       fontWeight: FontWeight.w700,
       height: 1.2,
       shadows: lit
@@ -344,10 +359,13 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
       key: key,
       mainAxisSize: MainAxisSize.min,
       children: [
-        Text(
-          presentation.text,
-          textAlign: TextAlign.center,
-          style: style,
+        Transform.scale(
+          scale: lit ? GlyphPose.active.scale : 1,
+          child: Text(
+            presentation.text,
+            textAlign: TextAlign.center,
+            style: style,
+          ),
         ),
         if (presentation.translation.isNotEmpty) ...[
           const SizedBox(height: 8),

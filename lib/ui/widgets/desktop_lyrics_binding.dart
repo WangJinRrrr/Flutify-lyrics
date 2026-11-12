@@ -13,6 +13,7 @@ import '../../providers/preferences_provider.dart';
 import '../../providers/spotify_provider.dart';
 import '../../services/desktop_lyrics/desktop_lyric_model.dart';
 import '../../services/desktop_lyrics/desktop_lyrics_host.dart';
+import '../../services/desktop_lyrics/desktop_lyrics_smoke.dart';
 
 /// 把正在播放的曲目、歌词和进度交给桌面歌词窗口。
 ///
@@ -48,6 +49,7 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
   bool _remote = false;
   int _leadMs = 0;
   int _lastSentMs = 0;
+  bool _smokeGaveUp = false;
 
   @override
   void initState() {
@@ -57,7 +59,8 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
     if (controller == null) return;
     controller
       ..onLockChanged = _setLocked
-      ..onClose = _close;
+      ..onClose = _close
+      ..onOpenFailed = _openFailed;
     _playback = context.read<PlaybackProvider>();
     _connect = context.read<ConnectProvider>();
     _preferences = context.read<PreferencesProvider>();
@@ -88,7 +91,8 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
     if (controller != null) {
       controller
         ..onLockChanged = null
-        ..onClose = null;
+        ..onClose = null
+        ..onOpenFailed = null;
     }
     super.dispose();
   }
@@ -103,6 +107,14 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
   }
 
   void _close() {
+    final preferences = _preferences;
+    if (preferences == null || !preferences.prefs.desktopLyrics) return;
+    preferences.update(preferences.prefs.copyWith(desktopLyrics: false));
+  }
+
+  void _openFailed(Object error) {
+    _smokeGaveUp = true;
+    debugPrint('[desktop-lyrics] 已把桌面歌词开关复位: $error');
     final preferences = _preferences;
     if (preferences == null || !preferences.prefs.desktopLyrics) return;
     preferences.update(preferences.prefs.copyWith(desktopLyrics: false));
@@ -159,6 +171,12 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
   void _onSource() {
     if (!mounted || _controller == null) return;
     final preferences = _preferences!;
+    if (desktopLyricsSmokeRequested &&
+        !_smokeGaveUp &&
+        !preferences.prefs.desktopLyrics) {
+      preferences.update(preferences.prefs.copyWith(desktopLyrics: true));
+      return;
+    }
     final enabled = preferences.prefs.desktopLyrics;
     if (!enabled) {
       unawaited(_controller!.hide());
@@ -183,6 +201,20 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
       anchoredAtMs: now,
       playing: playing,
     );
+
+    if (desktopLyricsSmokeRequested) {
+      _trackId = 'desktop-lyrics-smoke';
+      _session
+        ..changeTrack(id: 'desktop-lyrics-smoke', title: 'Sample')
+        ..setLyrics(
+          syncType: 'LINE_SYNCED',
+          lines: const [
+            DesktopLyricLineData(startTimeMs: 0, words: '星が落ちる'),
+          ],
+        );
+      _push();
+      return;
+    }
 
     final id = track?.id;
     if (id != _trackId) {

@@ -233,6 +233,23 @@ jobs:
         run: |
           ./tool/package_windows.ps1 -Arch '${{ matrix.arch }}' -Label $env:BUILD_LABEL -Compiler $env:INNO_COMPILER
 
+      - name: Reproduce desktop lyrics crash on v0.18-lyrics.1
+        if: matrix.arch == 'x64'
+        shell: pwsh
+        run: ./tool/desktop_lyrics_smoke.ps1 -Mode ReproduceOld
+
+      - name: Smoke test the fixed desktop lyrics window
+        if: matrix.arch == 'x64'
+        shell: pwsh
+        run: ./tool/desktop_lyrics_smoke.ps1 -Mode VerifyNew -Exe build/windows/x64/runner/Release/Flutify.exe -Screenshot dist/desktop-lyrics-smoke.png
+
+      - uses: actions/upload-artifact@v4
+        if: matrix.arch == 'x64'
+        with:
+          name: desktop-lyrics-smoke
+          path: dist/desktop-lyrics-smoke.png
+          if-no-files-found: error
+
       - uses: actions/upload-artifact@v4
         with:
           name: windows-${{ matrix.arch }}

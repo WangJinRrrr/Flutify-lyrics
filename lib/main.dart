@@ -86,6 +86,7 @@ import 'services/updates/update_installer.dart';
 import 'services/updates/update_service.dart';
 import 'services/desktop_lyrics/desktop_lyrics_host.dart';
 import 'services/desktop_lyrics/desktop_lyrics_protocol.dart';
+import 'services/desktop_lyrics/desktop_lyrics_smoke.dart';
 import 'services/taskbar_lyrics/taskbar_lyrics_channel.dart';
 import 'services/taskbar_lyrics/taskbar_lyrics_controls.dart';
 import 'ui/desktop_lyrics/desktop_lyrics_window.dart';
@@ -125,6 +126,7 @@ Future<void> main(List<String> args) async {
     await runDesktopLyricsWindow();
     return;
   }
+  desktopLyricsSmokeRequested = args.contains('--desktop-lyrics-smoke');
   // 必须先于任何其他 binding 创建：帧率上限在帧调度入口生效
   FrameRateBinding.ensureInitialized();
   // 解码后位图缓存默认 1000 张 / 100 MiB。封面都按显示尺寸解码（见 CoverImage），

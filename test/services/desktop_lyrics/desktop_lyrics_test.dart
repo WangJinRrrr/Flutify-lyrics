@@ -238,27 +238,25 @@ void main() {
     expect(presentation.breathing, isFalse);
   });
 
-  test('呼吸约 6.4 秒，入场离场含淡入缩放模糊，强调色双层光晕加深色投影', () {
-    expect(LyricMotion.breathPeriod, const Duration(milliseconds: 6400));
+  test('Folia classic 的呼吸、入场离场和双层光晕参数被原样保留', () {
+    expect(LyricMotion.breathPeriod, const Duration(milliseconds: 7000));
+    expect(LyricMotion.breathOffsetKeys, [0, -14, 0, 6.3, 0]);
+    expect(LyricMotion.breathScaleKeys, [1, 1.01, 1, 0.995, 1]);
     expect(LyricMotion.breathOffsetY(0), 0);
-    expect(LyricMotion.breathOffsetY(0.25).abs(), LyricMotion.breathAmplitude);
-    expect(LyricMotion.lineEnterPose.opacity, lessThan(1));
-    expect(LyricMotion.lineEnterPose.scale, lessThan(1));
-    expect(LyricMotion.lineEnterPose.blur, greaterThan(0));
-    expect(LyricMotion.lineExitPose.opacity, lessThan(1));
-    expect(LyricMotion.lineExitPose.scale, greaterThan(1));
-    expect(LyricMotion.lineExitPose.blur, greaterThan(0));
+    expect(LyricMotion.lineEnterPose.opacity, 0);
+    expect(LyricMotion.lineEnterPose.scale, 0.9);
+    expect(LyricMotion.lineEnterPose.blur, 10);
+    expect(LyricMotion.lineExitPose.scale, 1.1);
+    expect(LyricMotion.lineExitPose.blur, 20);
+    expect(LyricMotion.lineMoveDuration, const Duration(milliseconds: 300));
+    expect(GlyphPose.active.scale, 1.4);
+    expect(GlyphPose.passed.opacity, 0.82);
 
     const emphasis = Color(0xFF1ED760);
     final shadows = lyricGlowShadows(emphasis);
-    expect(shadows, hasLength(3));
-    expect(shadows[0].blurRadius, isNot(shadows[1].blurRadius));
+    expect(shadows.map((shadow) => shadow.blurRadius), [20, 40]);
     expect(shadows[0].color.withAlpha(255), emphasis);
     expect(shadows[1].color.withAlpha(255), emphasis);
-    expect(shadows[2].color.r, 0);
-    expect(shadows[2].color.g, 0);
-    expect(shadows[2].color.b, 0);
-    expect(shadows[2].offset, isNot(Offset.zero));
   });
 
   test('桌面歌词开关和锁定可以随偏好保存', () {

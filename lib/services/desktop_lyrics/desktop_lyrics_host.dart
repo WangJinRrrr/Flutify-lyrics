@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:desktop_multi_window/desktop_multi_window.dart';
@@ -12,6 +13,7 @@ abstract class DesktopLyricsController {
   Future<void> hide();
   set onLockChanged(void Function(bool locked)? value);
   set onClose(void Function()? value);
+  set onOpenFailed(void Function(Object error)? value);
 }
 
 bool get desktopLyricsSupported {
@@ -39,6 +41,7 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
   bool _childReady = false;
   bool _visible = false;
   bool _shown = false;
+  Timer? _readyTimer;
 
   @override
   void Function(bool locked)? onLockChanged;
@@ -47,16 +50,20 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
   void Function()? onClose;
 
   @override
+  void Function(Object error)? onOpenFailed;
+
+  @override
   Future<void> show(Map<String, dynamic> snapshot) async {
     _visible = true;
     _latest = snapshot;
     try {
       await _ensureChannel();
       final window = await _obtainWindow();
+      _armReadyTimer();
       if (!_visible || !_childReady) return;
       await _deliver(window);
     } catch (error, stack) {
-      debugPrint('[desktop-lyrics] 打开窗口失败: $error\n$stack');
+      _fail(error, stack);
     }
   }
 
@@ -64,6 +71,7 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
   Future<void> hide() async {
     _visible = false;
     _shown = false;
+    _readyTimer?.cancel();
     final window = _window;
     if (window == null) return;
     try {
@@ -87,6 +95,32 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
       if (identical(_pending, pending)) _pending = null;
       throw error;
     });
+  }
+
+  void _armReadyTimer() {
+    if (_childReady) return;
+    _readyTimer?.cancel();
+    _readyTimer = Timer(const Duration(seconds: 8), () {
+      if (!_childReady && _visible) {
+        _fail('桌面歌词窗口没有在 8 秒内就绪', StackTrace.current);
+      }
+    });
+  }
+
+  void _fail(Object error, StackTrace stack) {
+    _readyTimer?.cancel();
+    final window = _window;
+    _visible = false;
+    _shown = false;
+    _childReady = false;
+    _window = null;
+    _pending = null;
+    if (window != null) {
+      unawaited(window.hide().catchError((Object _) {}));
+    }
+    debugPrint('[desktop-lyrics] 打开窗口失败，关闭开关: $error\n$stack');
+    final report = onOpenFailed;
+    if (report != null) report(error);
   }
 
   Future<WindowController> _createWindow() async {
@@ -114,14 +148,17 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
     switch (call.method) {
       case 'ready':
         _childReady = true;
+        _readyTimer?.cancel();
         final window = _window;
         if (_visible && window != null) {
           try {
             await _deliver(window);
-          } catch (error) {
-            debugPrint('[desktop-lyrics] 同步歌词失败: $error');
+          } catch (error, stack) {
+            _fail(error, stack);
           }
         }
+      case 'failed':
+        _fail(call.arguments ?? '子窗口报告失败', StackTrace.current);
       case 'setLocked':
         onLockChanged?.call(call.arguments == true);
       case 'close':

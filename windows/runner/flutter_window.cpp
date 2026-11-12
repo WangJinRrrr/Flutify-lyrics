@@ -6,6 +6,23 @@
 #include "desktop_multi_window/desktop_multi_window_plugin.h"
 #include "media_identity.h"
 
+#include <screen_retriever_windows/screen_retriever_windows_plugin_c_api.h>
+#include <window_manager/window_manager_plugin.h>
+
+namespace {
+
+// 子引擎不能调用 RegisterPlugins。那会把 WebView2、托盘、全局热键和
+// desktop_multi_window 的“主窗口”注册再跑一遍，Windows 上会直接把进程打崩，
+// 并且 window_manager 可能改到主窗口。
+void RegisterDesktopLyricsPlugins(flutter::PluginRegistry* registry) {
+  ScreenRetrieverWindowsPluginCApiRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("ScreenRetrieverWindowsPluginCApi"));
+  WindowManagerPluginRegisterWithRegistrar(
+      registry->GetRegistrarForPlugin("WindowManagerPlugin"));
+}
+
+}  // namespace
+
 FlutterWindow::FlutterWindow(const flutter::DartProject& project)
     : project_(project) {}
 
@@ -33,7 +50,7 @@ bool FlutterWindow::OnCreate() {
   DesktopMultiWindowSetWindowCreatedCallback([](void* controller) {
     auto* flutter_view_controller =
         reinterpret_cast<flutter::FlutterViewController*>(controller);
-    RegisterPlugins(flutter_view_controller->engine());
+    RegisterDesktopLyricsPlugins(flutter_view_controller->engine());
   });
   SetChildContent(flutter_controller_->view()->GetNativeWindow());
 

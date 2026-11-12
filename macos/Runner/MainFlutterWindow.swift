@@ -1,6 +1,8 @@
 import Cocoa
 import FlutterMacOS
 import desktop_multi_window
+import screen_retriever_macos
+import window_manager
 
 class MainFlutterWindow: NSWindow {
   private var cacheDirectories: CacheDirectories?
@@ -13,7 +15,9 @@ class MainFlutterWindow: NSWindow {
 
     RegisterGeneratedPlugins(registry: flutterViewController)
     FlutterMultiWindowPlugin.setOnWindowCreatedCallback { controller in
-      RegisterGeneratedPlugins(registry: controller)
+      // 只注册子窗口自己的插件，避免把 WebView、媒体控制和托盘再初始化一次。
+      ScreenRetrieverMacosPlugin.register(with: controller.registrar(forPlugin: "ScreenRetrieverMacosPlugin"))
+      WindowManagerPlugin.register(with: controller.registrar(forPlugin: "WindowManagerPlugin"))
     }
     cacheDirectories = CacheDirectories(messenger: flutterViewController.engine.binaryMessenger)
 

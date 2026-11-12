@@ -2,11 +2,13 @@
 
 本仓库基于 [Flutify](https://github.com/is-hp-is-mad/Flutify)（MIT）上游提交 `89c55a875a7f532c090abd95b7b551f2ce16e5a3`（v0.18）。原版权声明与许可证保留在 [LICENSE](LICENSE)。本仓库代码以 MIT 发布。
 
-桌面歌词窗口的视觉只参考了 [Folia-major](https://github.com/chthollyphile/folia-major) classic 歌词，提交 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`（AGPL-3.0）：
+桌面歌词窗口的视觉来自 [Folia-major](https://github.com/chthollyphile/folia-major) classic 歌词，提交 `a44758bbc02929225ca7304b5a4c4580d7b4e87b`（AGPL-3.0）。`lib/services/desktop_lyrics/desktop_lyric_motion.dart` 直接移植了这些数值，没有引入该项目的其它代码：
 
-- 整行呼吸浮动，大约 6.4 秒一个周期，暂停时停住
-- 行的进入和离开：淡入、缩放、模糊
-- 整行作为一个字形的姿态
-- 强调色的双层光晕，加上深色投影
+| 数值 | Folia-major 源文件 |
+|---|---|
+| 呼吸 7 秒，位移 `[0, -14, 0, 6.3, 0]`，缩放 `[1, 1.01, 1, 0.995, 1]`，easeInOut | `src/components/visualizer/classic/Visualizer.tsx` 的 `lyricContainerFloat`（normal，multiplier 1） |
+| 入场 opacity 0 / scale 0.9 / blur 10px，离场 opacity 0 / scale 1.1 / blur 20px，0.3 秒 | `src/components/visualizer/glowWordTiming.ts` 的 `getGlowWordLineContainerMotion` |
+| 点亮缩放 1.4，经过后透明度 0.82 | `src/components/visualizer/glowWordVariants.ts` |
+| 强调色双层光晕，模糊半径 20 和 40 | `src/components/visualizer/wordGlow.ts` 的 `glowRadii` |
 
-这些效果在本仓库里用 Dart 重新实现。没有复制 Folia-major 的源码、动画表或注释，也没有引入该项目的其他部分。Folia-major 的 AGPL-3.0 不改变本仓库的 MIT 许可证。
+仓库根目录的 [LICENSE](LICENSE) 仍然是 MIT，没有改成 AGPL。上面这个文件里的数值是 AGPL-3.0 源码的派生内容。分发包含这些数值的程序时，该派生部分需要按 AGPL-3.0 提供对应源码；仓库其余代码仍按 MIT 分发。本文件就是那份说明。
