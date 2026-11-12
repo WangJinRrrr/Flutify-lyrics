@@ -41,6 +41,6 @@ test('release waits for all platforms and includes their packages in checksums',
   assert.match(release, /pattern: '\{android,windows-\*,macos,linux\}'/);
   assert.match(release, /merge-multiple: true/);
   assert.match(release, /android-universal\.apk macos\.zip linux-x64\.deb linux-x64\.tar\.gz; do/);
-  assert.match(release, /-eq 9/);
+  assert.match(release, /-eq 11/);
   assert.match(release, /sha256sum Flutify-\*/);
 });

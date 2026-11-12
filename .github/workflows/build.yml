@@ -163,12 +163,12 @@ jobs:
       BUILD_LABEL: ${{ needs.prepare.outputs.label }}
     strategy:
       fail-fast: false
-      # 本仓库 Release 只在 windows-latest 上打 x64。上游的 windows-11-arm 大规格 runner
-      # 不是这个仓库的发布条件；安装包脚本仍产出 zip 和 Inno Setup 安装程序。
       matrix:
         include:
           - arch: x64
             runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     steps:
       - uses: actions/checkout@v4
@@ -180,6 +180,24 @@ jobs:
           channel: stable
           cache: true
           architecture: ${{ matrix.arch }}
+
+      # 3.44.0 发布清单没有 Windows ARM64 SDK 压缩包；官方源码启动脚本支持
+      # 在 ARM64 宿主下载原生 Dart。不能给 flutter-action 传 arm64 后期待它找到压缩包。
+      - name: Bootstrap native Flutter SDK on Windows ARM64
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw 'Expected native ARM64 runner shell' }
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter-arm64'
+          git clone --depth 1 --branch $env:FLUTTER_VERSION https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter clone failed' }
+          $revision = git -C $sdk rev-parse HEAD
+          if ($revision -ne '559ffa3f75e7402d65a8def9c28389a9b2e6fe42') { throw 'Unexpected Flutter 3.44.0 revision' }
+          & "$sdk/bin/flutter.bat" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter bootstrap failed' }
+          $dartVersion = & "$sdk/bin/dart.bat" --version 2>&1
+          if ($dartVersion -notmatch 'windows_arm64') { throw "Expected ARM64 Dart: $dartVersion" }
+          "$sdk/bin" >> $env:GITHUB_PATH
 
       - run: flutter pub get
 
@@ -312,10 +330,10 @@ jobs:
           BUILD_LABEL: ${{ needs.prepare.outputs.label }}
         run: |
           cd dist
-          for suffix in windows-x64.zip windows-x64-setup.exe android-arm64-v8a.apk android-armeabi-v7a.apk android-x86_64.apk android-universal.apk macos.zip linux-x64.deb linux-x64.tar.gz; do
+          for suffix in windows-x64.zip windows-x64-setup.exe windows-arm64.zip windows-arm64-setup.exe android-arm64-v8a.apk android-armeabi-v7a.apk android-x86_64.apk android-universal.apk macos.zip linux-x64.deb linux-x64.tar.gz; do
             test -s "Flutify-${BUILD_LABEL}-${suffix}" || { echo "Missing package: ${suffix}"; exit 1; }
           done
-          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 9
+          test "$(find . -maxdepth 1 -type f | wc -l)" -eq 11
           sha256sum Flutify-* > SHA256SUMS.txt
 
       - name: Prepare release notes
@@ -326,7 +344,7 @@ jobs:
           if [ -f "$notes" ]; then
             cp "$notes" "$RUNNER_TEMP/release-notes.md"
           else
-            printf '%s\n' 'Windows x64 提供安装版和便携版；Android 提供三种 ABI 与通用 APK；macOS 提供未做 Developer ID 签名和 Apple 公证的测试 ZIP；Linux x64 提供实验性 .deb 与发行版中立的 tar.gz。全部平台构建及产物校验通过后发布，校验和见 SHA256SUMS.txt。' '构建通过不代表所有设备兼容性问题已完成实机验证，已知问题见 README。' > "$RUNNER_TEMP/release-notes.md"
+            printf '%s\n' 'Windows x64 / ARM64 提供安装版和便携版；Android 提供三种 ABI 与通用 APK；macOS 提供未做 Developer ID 签名和 Apple 公证的测试 ZIP；Linux x64 提供实验性 .deb 与发行版中立的 tar.gz。全部平台构建及产物校验通过后发布，校验和见 SHA256SUMS.txt。' '构建通过不代表所有设备兼容性问题已完成实机验证，已知问题见 README。' > "$RUNNER_TEMP/release-notes.md"
           fi
           if [ "${{ needs.android.outputs.signing }}" = "debug" ]; then
             printf '\n%s\n' '本次 Android APK 使用 debug 密钥签名，不是上游固定发布证书。系统会把它当成未知来源，也不能覆盖用其他证书签名的旧版本。' >> "$RUNNER_TEMP/release-notes.md"

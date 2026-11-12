@@ -164,6 +164,8 @@ jobs:
         include:
           - arch: x64
             runner: windows-latest
+          - arch: arm64
+            runner: windows-11-arm
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 45
     env:
@@ -179,6 +181,22 @@ jobs:
           channel: stable
           cache: true
           architecture: ${{ matrix.arch }}
+      # This SDK version has no prebuilt Windows ARM64 archive.
+      - name: Bootstrap native Flutter SDK on Windows ARM64
+        if: matrix.arch == 'arm64'
+        shell: pwsh
+        run: |
+          if ($env:PROCESSOR_ARCHITECTURE -ne 'ARM64') { throw 'Expected native ARM64 runner shell' }
+          $sdk = Join-Path $env:RUNNER_TEMP 'flutter-arm64'
+          git clone --depth 1 --branch $env:FLUTTER_VERSION https://github.com/flutter/flutter.git $sdk
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter clone failed' }
+          $revision = git -C $sdk rev-parse HEAD
+          if ($revision -ne '559ffa3f75e7402d65a8def9c28389a9b2e6fe42') { throw 'Unexpected Flutter 3.44.0 revision' }
+          & "$sdk/bin/flutter.bat" --version
+          if ($LASTEXITCODE -ne 0) { throw 'Flutter bootstrap failed' }
+          $dartVersion = & "$sdk/bin/dart.bat" --version 2>&1
+          if ($dartVersion -notmatch 'windows_arm64') { throw "Expected ARM64 Dart: $dartVersion" }
+          "$sdk/bin" >> $env:GITHUB_PATH
       - run: flutter pub get
       - name: Test Windows PowerShell 5.1 update handoff
         run: python tool/test_windows_update.py -v

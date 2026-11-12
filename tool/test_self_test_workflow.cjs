@@ -85,11 +85,13 @@ test('macOS self-tests retain the validated SDK and never request distribution s
   assert.doesNotMatch(macos, /notarytool|import-codesign|Developer ID/);
 });
 
-test('Windows self-tests build the windows-latest package and verify its portable bundle', () => {
+test('Windows self-tests build both native architectures and verify their portable bundles', () => {
   const windows = job('windows');
   assert.match(windows, /needs: quality/);
   assert.match(windows, /arch: x64\n\s+runner: windows-latest/);
-  assert.doesNotMatch(windows, /windows-11-arm/);
+  assert.match(windows, /arch: arm64\n\s+runner: windows-11-arm/);
+  assert.match(windows, /559ffa3f75e7402d65a8def9c28389a9b2e6fe42/);
+  assert.match(windows, /windows_arm64/);
   assert.match(windows, /flutter build windows --release --no-pub/);
   assert.doesNotMatch(windows, /FLUTIFY_NATIVE_WIDEVINE/);
   assert.match(windows, /python tool\/verify_windows_arch\.py/);
