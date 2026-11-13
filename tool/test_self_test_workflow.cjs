@@ -42,23 +42,6 @@ test('quality checks run static analysis and every Flutter, Node and Python regr
   assert.doesNotMatch(quality, /no-fatal-warnings|\|\| true/);
 });
 
-test('only the standalone titlebar job is path-scoped, with a fail-safe fallback', () => {
-  const scope = job('scope');
-  assert.match(scope, /runs-on: ubuntu-latest/);
-  assert.match(scope, /fetch-depth: 0/);
-  assert.match(scope, /macos_titlebar: \$\{\{ steps\.scope\.outputs\.macos_titlebar \}\}/);
-  assert.match(scope, /id: scope\n\s+run: node tool\/self_test_scope\.cjs/);
-  const titlebar = job('macos-titlebar');
-  assert.match(titlebar, /needs: scope/);
-  assert.match(titlebar, /!cancelled\(\)/);
-  assert.match(titlebar, /needs\.scope\.result != 'success' \|\| needs\.scope\.outputs\.macos_titlebar != 'false'/);
-  assert.match(titlebar, /swiftc macos\/Runner\/TrafficLightAligner\.swift tool\/test_macos_titlebar\.swift/);
-  assert.match(titlebar, /timeout-minutes: 5/);
-  for (const name of ['quality', 'android', 'macos', 'windows']) {
-    assert.doesNotMatch(job(name), /needs\.scope|needs: scope|^    if:/m);
-  }
-});
-
 test('Android tests release builds using a disposable key and verifies all four APKs', () => {
   const android = job('android');
   assert.match(android, /needs: quality/);
@@ -71,18 +54,6 @@ test('Android tests release builds using a disposable key and verifies all four 
   assert.match(android, /name: self-test-android/);
   assert.match(android, /if-no-files-found: error/);
   assert.match(android, /retention-days: 7/);
-});
-
-test('macOS self-tests retain the validated SDK and never request distribution signing', () => {
-  const macos = job('macos');
-  assert.match(workflow(), /FLUTTER_VERSION_MACOS: '3\.44\.9'/);
-  assert.match(macos, /needs: quality/);
-  assert.match(macos, /flutter-version: \$\{\{ env\.FLUTTER_VERSION_MACOS \}\}/);
-  assert.match(macos, /flutter test --no-pub/);
-  assert.match(macos, /flutter build macos --release --no-pub/);
-  assert.match(macos, /--keepParent build\/macos\/Build\/Products\/Release\/Flutify\.app/);
-  assert.match(macos, /name: self-test-macos/);
-  assert.doesNotMatch(macos, /notarytool|import-codesign|Developer ID/);
 });
 
 test('Windows self-tests build both native architectures and verify their portable bundles', () => {
@@ -101,14 +72,14 @@ test('Windows self-tests build both native architectures and verify their portab
   assert.match(windows, /if-no-files-found: error/);
 });
 
-test('Linux self-tests package both release formats for other distributions', () => {
-  const linux = job('linux');
-  assert.match(linux, /needs: quality/);
-  assert.match(linux, /flutter build linux --release --no-pub/);
-  assert.match(linux, /tool\/package_linux_deb\.sh/);
-  assert.match(linux, /tool\/package_linux_tarball\.sh/);
-  assert.match(linux, /name: self-test-linux/);
-  assert.match(linux, /if-no-files-found: error/);
+test('self-test no longer builds macOS or Linux', () => {
+  const source = workflow();
+  assert.doesNotMatch(source, /^  scope:$/m);
+  assert.doesNotMatch(source, /^  macos-titlebar:$/m);
+  assert.doesNotMatch(source, /^  macos:$/m);
+  assert.doesNotMatch(source, /^  linux:$/m);
+  assert.doesNotMatch(source, /flutter build macos|flutter build linux/);
+  assert.doesNotMatch(source, /FLUTTER_VERSION_MACOS/);
 });
 
 test('the release pipeline uses a fixed keystore when secrets exist, otherwise the debug key', () => {

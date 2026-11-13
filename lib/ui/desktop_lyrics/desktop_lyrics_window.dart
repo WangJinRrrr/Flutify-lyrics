@@ -311,18 +311,25 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
               : (_) {
                   unawaited(windowManager.startDragging());
                 },
-          child: Padding(
-            padding: const EdgeInsets.fromLTRB(28, 8, 20, 16),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                if (!_locked) _controls(),
-                LyricBreath(
-                  paused: !_presentation.breathing,
-                  child: _line(accent),
+          child: Stack(
+            children: [
+              // 歌词始终占满整个窗口并居中。控制按钮以前放在 Column 里，
+              // 锁定后整行会被抽走，歌词也跟着上下跳；改成叠在上面的浮层后，
+              // 锁定 / 未锁定的歌词位置完全一致。
+              Positioned.fill(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(28, 8, 20, 16),
+                  child: Center(
+                    child: LyricBreath(
+                      paused: !_presentation.breathing,
+                      child: _line(accent),
+                    ),
+                  ),
                 ),
-              ],
-            ),
+              ),
+              if (!_locked)
+                Positioned(top: 2, right: 8, child: _controls()),
+            ],
           ),
         ),
       ),
@@ -330,23 +337,21 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
   }
 
   Widget _controls() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          IconButton(
-            tooltip: _lockTip,
-            onPressed: () => unawaited(_host.invokeMethod<void>('setLocked', true)),
-            icon: const Icon(Icons.lock_open_rounded, color: Colors.white),
-          ),
-          IconButton(
-            tooltip: _closeTip,
-            onPressed: () => unawaited(_host.invokeMethod<void>('close')),
-            icon: const Icon(Icons.close_rounded, color: Colors.white),
-          ),
-        ],
-      ),
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        IconButton(
+          tooltip: _lockTip,
+          onPressed: () =>
+              unawaited(_host.invokeMethod<void>('setLocked', true)),
+          icon: const Icon(Icons.lock_open_rounded, color: Colors.white),
+        ),
+        IconButton(
+          tooltip: _closeTip,
+          onPressed: () => unawaited(_host.invokeMethod<void>('close')),
+          icon: const Icon(Icons.close_rounded, color: Colors.white),
+        ),
+      ],
     );
   }
 

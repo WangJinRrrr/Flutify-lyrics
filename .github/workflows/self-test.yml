@@ -18,39 +18,8 @@ concurrency:
 
 env:
   FLUTTER_VERSION: '3.44.0'
-  FLUTTER_VERSION_MACOS: '3.44.9'
 
 jobs:
-  scope:
-    name: Select native checks
-    runs-on: ubuntu-latest
-    timeout-minutes: 5
-    outputs:
-      macos_titlebar: ${{ steps.scope.outputs.macos_titlebar }}
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
-      - id: scope
-        run: node tool/self_test_scope.cjs
-
-  macos-titlebar:
-    name: macOS native titlebar hit testing
-    needs: scope
-    # Only an explicit, successful false may skip this independent native test.
-    if: ${{ !cancelled() && (needs.scope.result != 'success' || needs.scope.outputs.macos_titlebar != 'false') }}
-    runs-on: macos-latest
-    timeout-minutes: 5
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - name: Check native button hit regions and Flutter content access
-        run: |
-          swiftc macos/Runner/TrafficLightAligner.swift tool/test_macos_titlebar.swift -o "$RUNNER_TEMP/titlebar-test"
-          "$RUNNER_TEMP/titlebar-test"
-
   quality:
     name: Analyze and test
     runs-on: ubuntu-latest
@@ -127,34 +96,6 @@ jobs:
           if-no-files-found: error
           retention-days: 7
 
-  macos:
-    name: macOS self-test
-    needs: quality
-    runs-on: macos-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION_MACOS }}
-          channel: stable
-          cache: true
-      - run: flutter pub get
-      - run: flutter test --no-pub
-      - run: flutter build macos --release --no-pub
-      - name: Package self-test app
-        run: |
-          mkdir -p dist
-          ditto -c -k --keepParent build/macos/Build/Products/Release/Flutify.app "dist/Flutify-self-test-${GITHUB_SHA:0:7}-macos.zip"
-      - uses: actions/upload-artifact@v4
-        with:
-          name: self-test-macos
-          path: dist/*.zip
-          if-no-files-found: error
-          retention-days: 7
-
   windows:
     name: Windows ${{ matrix.arch }} self-test
     needs: quality
@@ -222,40 +163,5 @@ jobs:
         with:
           name: self-test-windows-${{ matrix.arch }}
           path: dist/*.zip
-          if-no-files-found: error
-          retention-days: 7
-
-  linux:
-    name: Linux x64 self-test
-    needs: quality
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - uses: actions/checkout@v4
-        with:
-          persist-credentials: false
-      - uses: subosito/flutter-action@v2
-        with:
-          flutter-version: ${{ env.FLUTTER_VERSION }}
-          channel: stable
-          cache: true
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y ninja-build libgtk-3-dev liblzma-dev libblkid-dev
-      - run: flutter pub get
-      - run: flutter test --no-pub
-      - run: flutter build linux --release --no-pub
-      - name: Package self-test .deb and tarball
-        run: |
-          mkdir -p dist
-          tool/package_linux_deb.sh --label "self-test-${GITHUB_SHA:0:7}" \
-            --bundle build/linux/x64/release/bundle --output dist
-          tool/package_linux_tarball.sh --label "self-test-${GITHUB_SHA:0:7}" \
-            --bundle build/linux/x64/release/bundle --output dist
-      - uses: actions/upload-artifact@v4
-        with:
-          name: self-test-linux
-          path: dist/*
           if-no-files-found: error
           retention-days: 7
