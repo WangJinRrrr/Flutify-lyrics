@@ -209,7 +209,7 @@ class _DesktopLyricsBindingState extends State<DesktopLyricsBinding> {
         ..setLyrics(
           syncType: 'LINE_SYNCED',
           lines: const [
-            DesktopLyricLineData(startTimeMs: 0, words: '星が落ちる'),
+            DesktopLyricLineData(startTimeMs: 0, words: '下半生竟再開學 入迷的終於醒覺'),
           ],
         );
       _push();

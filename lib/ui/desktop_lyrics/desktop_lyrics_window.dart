@@ -426,40 +426,56 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
               ),
             ],
     );
-    return Column(
+    return LayoutBuilder(
       key: key,
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Transform.scale(
-          scale: lit ? GlyphPose.active.scale : 1,
-          child: Text(
-            presentation.text,
-            textAlign: TextAlign.center,
-            style: style,
-          ),
-        ),
-        if (presentation.translation.isNotEmpty) ...[
-          const SizedBox(height: 8),
-          Text(
-            presentation.translation,
-            textAlign: TextAlign.center,
-            style: const TextStyle(
-              fontFamily: 'MiSans',
-              color: Color(0xE6FFFFFF),
-              fontSize: 18,
-              fontWeight: FontWeight.w500,
-              height: 1.25,
-              shadows: [
-                Shadow(
-                  color: Color(0xCC000000),
-                  offset: Offset(0, 1),
-                  blurRadius: 6,
+      builder: (context, constraints) {
+        // Transform.scale 只影响绘制，不影响布局。点亮时整行会放大 1.4 倍，
+        // 如果仍按窗口全宽排版，长句会被推出窗口、左右两侧被截断。
+        // 先按「缩放后的可见宽度」约束排版，再用 FittedBox 把过长的单行缩到
+        // 这个宽度里；短句保持原字号，长句自动变小，不会再被裁掉。
+        final emphasis = lit ? GlyphPose.active.scale : 1.0;
+        final available = constraints.maxWidth;
+        Widget text = Text(
+          presentation.text,
+          textAlign: TextAlign.center,
+          maxLines: 1,
+          softWrap: false,
+          style: style,
+        );
+        if (available.isFinite && available > 0) {
+          text = SizedBox(
+            width: available / emphasis,
+            child: FittedBox(fit: BoxFit.scaleDown, child: text),
+          );
+        }
+        return Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Transform.scale(scale: emphasis, child: text),
+            if (presentation.translation.isNotEmpty) ...[
+              const SizedBox(height: 8),
+              Text(
+                presentation.translation,
+                textAlign: TextAlign.center,
+                style: const TextStyle(
+                  fontFamily: 'MiSans',
+                  color: Color(0xE6FFFFFF),
+                  fontSize: 18,
+                  fontWeight: FontWeight.w500,
+                  height: 1.25,
+                  shadows: [
+                    Shadow(
+                      color: Color(0xCC000000),
+                      offset: Offset(0, 1),
+                      blurRadius: 6,
+                    ),
+                  ],
                 ),
-              ],
-            ),
-          ),
-        ],
-      ],
+              ),
+            ],
+          ],
+        );
+      },
     );
   }
 }
