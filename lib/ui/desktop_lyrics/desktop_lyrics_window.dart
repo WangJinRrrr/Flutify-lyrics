@@ -5,6 +5,7 @@ import 'dart:ui';
 import 'package:desktop_multi_window/desktop_multi_window.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/scheduler.dart';
+import 'package:flutter/services.dart' show MethodCall;
 import 'package:screen_retriever/screen_retriever.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:window_manager/window_manager.dart';
@@ -17,15 +18,15 @@ import 'lyric_breath.dart';
 
 Future<void> runDesktopLyricsWindow() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await windowManager.ensureInitialized();
-  final controller = await WindowController.fromCurrentEngine();
-  runApp(DesktopLyricsApp(controller: controller));
+  // 子引擎跑在独立 UI 线程上，原生侧注册 desktop_multi_window /
+  // window_manager 插件与 Dart 启动并发。若在 runApp 之前就 await 插件调用，
+  // release 包会因为注册尚未完成抛出 MissingPluginException，窗口一直停在
+  // 隐藏的空白状态。先画出第一帧，再带重试连接父窗口。
+  runApp(const DesktopLyricsApp());
 }
 
 class DesktopLyricsApp extends StatefulWidget {
-  final WindowController controller;
-
-  const DesktopLyricsApp({super.key, required this.controller});
+  const DesktopLyricsApp({super.key});
 
   @override
   State<DesktopLyricsApp> createState() => _DesktopLyricsAppState();
@@ -60,28 +61,74 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
   }
 
   Future<void> _start() async {
-    await widget.controller.setWindowMethodHandler((call) async {
-      if (call.method == 'snapshot' && call.arguments is Map) {
-        _apply(Map<dynamic, dynamic>.from(call.arguments as Map));
-      }
-      return null;
-    });
-    if (!mounted) return;
+    String? windowId;
     try {
+      // fromCurrentEngine / window_manager 都要等原生插件注册完成。
+      // 两者与 Dart main 并发，release 包里这个窗口经常输在起跑线上。
+      final controller = await _retry<WindowController>(
+        WindowController.fromCurrentEngine,
+      );
+      windowId = controller.windowId;
+      if (!mounted) return;
+      await _retry<void>(
+        () => controller.setWindowMethodHandler(_onWindowCall),
+      );
+      await _retry<void>(windowManager.ensureInitialized);
+      if (!mounted) return;
       await _prepareWindow();
+      if (!mounted) return;
+      setState(() => _windowReady = true);
+      // 带上 windowId：主窗口可能已经因为超时重建了窗口，旧引擎的就绪消息
+      // 不能把新窗口误判为已就绪。
+      await _retry<void>(() => _host.invokeMethod<void>('ready', windowId));
     } catch (error, stack) {
-      debugPrint('[desktop-lyrics] 子窗口配置失败: $error\n$stack');
+      _logFailure(error, stack);
       try {
-        await _host.invokeMethod<void>('failed', '$error');
+        await _host.invokeMethod<void>('failed', {
+          'windowId': windowId,
+          'error': '$error',
+        });
       } catch (_) {}
-      return;
     }
-    if (!mounted) return;
-    setState(() => _windowReady = true);
+  }
+
+  /// 子引擎没有走 [installFileLog]，release 包里的 debugPrint 也看不到。
+  /// 初始化失败时单独留一份日志，方便定位「开关打开了但窗口一直空白」。
+  void _logFailure(Object error, StackTrace stack) {
+    debugPrint('[desktop-lyrics] 子窗口初始化失败: $error\n$stack');
     try {
-      await _host.invokeMethod<void>('ready');
-    } catch (error, stack) {
-      debugPrint('[desktop-lyrics] 子窗口未能通知主窗口: $error\n$stack');
+      File(
+        '${Directory.systemTemp.path}${Platform.pathSeparator}'
+        'flutify-desktop-lyrics.log',
+      ).writeAsStringSync(
+        '${DateTime.now().toIso8601String()} $error\n$stack\n',
+        mode: FileMode.append,
+        flush: true,
+      );
+    } catch (_) {}
+  }
+
+  Future<dynamic> _onWindowCall(MethodCall call) async {
+    if (call.method == 'snapshot' && call.arguments is Map) {
+      _apply(Map<dynamic, dynamic>.from(call.arguments as Map));
+    }
+    return null;
+  }
+
+  /// 插件注册和子引擎启动是并行的，早期调用会抛 MissingPluginException。
+  /// 在 [timeout] 内不断重试，直到原生侧就位。
+  Future<T> _retry<T>(
+    Future<T> Function() action, {
+    Duration timeout = const Duration(seconds: 10),
+  }) async {
+    final deadline = DateTime.now().add(timeout);
+    while (true) {
+      try {
+        return await action();
+      } catch (_) {
+        if (DateTime.now().isAfter(deadline)) rethrow;
+        await Future<void>.delayed(const Duration(milliseconds: 120));
+      }
     }
   }
 
@@ -108,19 +155,21 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
       ),
     );
     await _step('setTitle', () => windowManager.setTitle('桌面歌词'));
-    // Windows 上 window_manager 改样式会把进程打成 0xC0000005。
+    // Windows 上 setAsFrameless / setAlwaysOnTop 会把进程打成 0xC0000005，
     // 无边框和置顶由子窗口创建回调直接写子 HWND。
     if (!Platform.isWindows) {
       await _step('setAsFrameless', windowManager.setAsFrameless);
       await _step('setSkipTaskbar', () => windowManager.setSkipTaskbar(true));
       await _step('setAlwaysOnTop', () => windowManager.setAlwaysOnTop(true));
-      await _step(
-        'setBackgroundColor',
-        () => windowManager.setBackgroundColor(Colors.transparent),
-      );
     }
+    // 透明背景只改 DWM 合成属性，不碰窗口样式；逐窗口的调用不会动主窗口。
+    await _step(
+      'setBackgroundColor',
+      () => windowManager.setBackgroundColor(Colors.transparent),
+    );
     windowManager.addListener(this);
-    await _step('show', windowManager.show);
+    // 不在这里 show：主窗口只会在「已经收到快照」时把窗口显示出来。
+    // 否则子窗口如果晚了几秒才连上，会在用户已经关掉开关之后自己冒出来。
   }
 
   Future<DesktopLyricsBounds> _restoredBounds() async {
@@ -193,6 +242,12 @@ class _DesktopLyricsAppState extends State<DesktopLyricsApp>
   Future<void> _applyLock(bool locked) async {
     try {
       await windowManager.setIgnoreMouseEvents(locked, forward: true);
+      // window_manager 的点击穿透只给窗口加上 WS_EX_LAYERED，却没有设置
+      // 分层属性；Windows 上这样的窗口不会绘制，歌词会直接消失。
+      // setOpacity(1) 会补上 SetLayeredWindowAttributes，保持完全不透明。
+      if (locked && Platform.isWindows) {
+        await windowManager.setOpacity(1);
+      }
     } catch (error) {
       debugPrint('[desktop-lyrics] 锁定鼠标失败: $error');
     }

@@ -26,6 +26,10 @@ void StyleDesktopLyricsWindow(HWND hwnd) {
   LONG style = GetWindowLong(hwnd, GWL_STYLE);
   style &= ~(WS_CAPTION | WS_THICKFRAME | WS_SYSMENU);
   SetWindowLong(hwnd, GWL_STYLE, style);
+  // 工具窗口：不占任务栏、不出现在 Alt+Tab。歌词是悬浮层，不是第二个应用窗口。
+  LONG ex_style = GetWindowLong(hwnd, GWL_EXSTYLE);
+  ex_style = (ex_style | WS_EX_TOOLWINDOW) & ~WS_EX_APPWINDOW;
+  SetWindowLong(hwnd, GWL_EXSTYLE, ex_style);
   SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0,
                SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE | SWP_FRAMECHANGED);
   SetWindowTextW(hwnd, L"桌面歌词");

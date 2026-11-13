@@ -59,8 +59,8 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
     try {
       await _ensureChannel();
       final window = await _obtainWindow();
-      await window.show();
-      _shown = true;
+      // 子窗口先保持隐藏：等它把第一份快照收好再显示，避免出现空白的
+      // 置顶窗口。_deliver 里会先发快照再 show。
       _armReadyTimer();
       if (!_visible || !_childReady) return;
       await _deliver(window);
@@ -100,11 +100,13 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
   }
 
   void _armReadyTimer() {
-    if (_childReady) return;
-    _readyTimer?.cancel();
-    _readyTimer = Timer(const Duration(seconds: 8), () {
+    // 播放中每秒都会调用 show()，计时器只从创建窗口时算起，不能被续命。
+    if (_childReady || (_readyTimer?.isActive ?? false)) return;
+    // 子窗口自己最多重试 10 秒等插件注册，主窗口多留一点余量。
+    _readyTimer = Timer(const Duration(seconds: 12), () {
+      _readyTimer = null;
       if (!_childReady && _visible) {
-        _fail('桌面歌词窗口没有在 8 秒内就绪', StackTrace.current);
+        _fail('桌面歌词窗口没有在 12 秒内就绪', StackTrace.current);
       }
     });
   }
@@ -139,16 +141,26 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
   Future<void> _deliver(WindowController window) async {
     final latest = _latest;
     if (latest == null || !_visible) return;
+    // 先送第一份快照再显示，避免出现一帧空白 / 纯色的置顶窗口。
+    await window.invokeMethod<void>('snapshot', latest);
     if (!_shown) {
       await window.show();
       _shown = true;
     }
-    await window.invokeMethod<void>('snapshot', latest);
+  }
+
+  /// 旧引擎在窗口重建后仍可能发来 ready / failed，只认当前窗口的消息。
+  bool _fromCurrentWindow(Object? arguments) {
+    final window = _window;
+    if (window == null) return false;
+    final id = arguments is Map ? arguments['windowId'] : arguments;
+    return id is! String || id.isEmpty || id == window.windowId;
   }
 
   Future<dynamic> _onHostCall(MethodCall call) async {
     switch (call.method) {
       case 'ready':
+        if (!_fromCurrentWindow(call.arguments)) return null;
         _childReady = true;
         _readyTimer?.cancel();
         final window = _window;
@@ -160,7 +172,10 @@ class DesktopLyricsWindowHost implements DesktopLyricsController {
           }
         }
       case 'failed':
-        _fail(call.arguments ?? '子窗口报告失败', StackTrace.current);
+        if (!_fromCurrentWindow(call.arguments)) return null;
+        final arguments = call.arguments;
+        final error = arguments is Map ? arguments['error'] : arguments;
+        _fail(error ?? '子窗口报告失败', StackTrace.current);
       case 'setLocked':
         onLockChanged?.call(call.arguments == true);
       case 'close':
